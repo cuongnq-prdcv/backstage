@@ -74,4 +74,5 @@ backend.add(import('@backstage/plugin-signals-backend'));
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
 backend.add(import('@internal/backstage-plugin-platform-backend-module-tenant-provisioning'));
+backend.add(import('@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane'));
 backend.start();

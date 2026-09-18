@@ -5227,6 +5227,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane@workspace:^, @internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane@workspace:plugins/platform-backend-module-tenant-provisioning-crossplane":
+  version: 0.0.0-use.local
+  resolution: "@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane@workspace:plugins/platform-backend-module-tenant-provisioning-crossplane"
+  dependencies:
+    "@backstage/backend-plugin-api": "npm:^1.10.0"
+    "@backstage/backend-test-utils": "npm:^1.11.6"
+    "@backstage/cli": "npm:^0.36.5"
+    "@backstage/integration": "npm:^2.1.1"
+    "@backstage/plugin-scaffolder-backend": "npm:^4.0.3"
+    "@backstage/plugin-scaffolder-node": "npm:^0.13.6"
+    "@backstage/types": "npm:^1.2.2"
+    "@octokit/rest": "npm:^22.0.1"
+    fast-check: "npm:^4.9.0"
+    isomorphic-git: "npm:^1.41.9"
+    yaml: "npm:^2.5.0"
+    zod: "npm:^4.5.4"
+  languageName: unknown
+  linkType: soft
+
 "@internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:^, @internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:plugins/platform-backend-module-tenant-provisioning":
   version: 0.0.0-use.local
   resolution: "@internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:plugins/platform-backend-module-tenant-provisioning"
@@ -13696,6 +13715,7 @@ __metadata:
     "@backstage/plugin-techdocs-backend": "npm:^2.2.3"
     "@backstage/plugin-user-settings-backend": "npm:^0.4.6"
     "@internal/backstage-plugin-platform-backend-module-tenant-provisioning": "workspace:^"
+    "@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane": "workspace:^"
     "@types/js-yaml": "npm:^4.0.9"
     "@types/supertest": "npm:^7.2.1"
     ajv: "npm:^8.20.0"
@@ -32124,6 +32144,15 @@ __metadata:
   bin:
     yaml: bin.mjs
   checksum: 10c0/f340718df45e97a9551b9bf9dac61c80050bc464513b710debfb5067c380c8472e3b67809cffacb4ab5ffb5e66ef9310816c88b05f371cec60abfedd8c88e0a2
+  languageName: node
+  linkType: hard
+
+"yaml@npm:^2.5.0":
+  version: 2.9.1
+  resolution: "yaml@npm:2.9.1"
+  bin:
+    yaml: bin.mjs
+  checksum: 10c0/9d06676ef02b89559a8b10a71882bd2cdae81e8393dc8dbc871615c3259475d9609ad973d19cb3c9e71e72d6206e3d1e7aa241c7e55f3d16fd2e77db305827d6
   languageName: node
   linkType: hard
 

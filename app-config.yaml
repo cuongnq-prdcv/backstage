@@ -199,6 +199,13 @@ tenantProvisioning:
   moduleSource: ${TERRAGRUNT_MODULE_SOURCE} # required
   components: [dynamodb, ecr] # Allowed_Components; defaults to [dynamodb, ecr]
 
+crossplaneProvisioning:
+  liveRepoUrl: ${CROSSPLANE_LIVE_REPO_URL} # required
+  liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH} # optional; defaults to main
+  apiVersion: platform.hello-crossplane.io/v1alpha1 # optional; default shown
+  kind: TenantEnvironment # optional; default shown
+  components: [table, repository] # Allowed_Components; defaults to [table, repository]
+
 catalog:
   import:
     entityFilename: catalog-info.yaml
@@ -219,6 +226,12 @@ catalog:
     # Tenant provisioning template
     - type: file
       target: ../../templates/tenant-provisioning/template.yaml
+      rules:
+        - allow: [Template]
+
+    # Tenant provisioning template (Crossplane)
+    - type: file
+      target: ../../templates/tenant-provisioning-crossplane/template.yaml
       rules:
         - allow: [Template]
 
