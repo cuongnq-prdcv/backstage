@@ -33,7 +33,7 @@ jest.mock('@octokit/rest', () => ({
   })),
 }));
 
-import { createGitHelper, GitOperationError } from '../git';
+import { createGitHelper, GitOperationError } from '../../lib/git';
 // Retrieve the hoisted mocks after they are registered.
 import isomorphicGit from 'isomorphic-git';
 

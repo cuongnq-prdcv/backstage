@@ -32,10 +32,6 @@ auth:
   environment: production
   providers:
     guest: {}
-    github:
-      production:
-        clientId: ${GITHUB_CLIENT_ID}
-        clientSecret: ${GITHUB_CLIENT_SECRET}
     microsoft:
       production:
         clientId: ${AZURE_CLIENT_ID}

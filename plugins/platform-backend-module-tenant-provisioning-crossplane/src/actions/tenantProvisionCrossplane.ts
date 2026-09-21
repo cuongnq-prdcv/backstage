@@ -6,19 +6,19 @@ import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-import { readCrossplaneProvisioningConfig } from '../config';
-import { expandComponents } from '../components';
-import { renderTenantEnvironmentManifest, type Environment } from '../manifest';
-import { buildBranchName, buildPullRequestTitle } from '../naming';
-import { redact } from '../redact';
-import { createWorkspace } from '../workspace';
+import { readCrossplaneProvisioningConfig } from '../lib/config';
+import { expandComponents } from '../lib/components';
+import { renderTenantEnvironmentManifest, type Environment } from '../lib/manifest';
+import { buildBranchName, buildPullRequestTitle } from '../lib/naming';
+import { redact } from '../lib/redact';
+import { createWorkspace } from '../lib/workspace';
 import {
   CLONE_TIMEOUT_MS,
   PULL_REQUEST_TIMEOUT_MS,
   PUSH_TIMEOUT_MS,
   createGitHelper,
   resolveLiveRepoToken,
-} from '../git';
+} from '../lib/git';
 
 /** Input accepted by the `tenant:provision-crossplane` action. */
 export interface TenantProvisionCrossplaneInput {

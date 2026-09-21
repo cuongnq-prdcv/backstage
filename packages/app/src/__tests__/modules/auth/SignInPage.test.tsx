@@ -10,18 +10,17 @@ import {
   configApiRef,
   discoveryApiRef,
   errorApiRef,
-  githubAuthApiRef,
   microsoftAuthApiRef,
   type ProfileInfo,
 } from '@backstage/core-plugin-api';
-import { AppSignInPage } from './SignInPage';
+import { AppSignInPage } from '../../../modules/auth/SignInPage';
 
 /**
- * These tests exercise the sign-in page surface for the GitHub provider
- * (Requirement 4). They render the real `AppSignInPage` (which wraps the
- * `@backstage/core-components` `SignInPage`) with a mocked `githubAuthApiRef`
+ * These tests exercise the sign-in page surface for the Microsoft (Azure Entra
+ * ID) provider. They render the real `AppSignInPage` (which wraps the
+ * `@backstage/core-components` `SignInPage`) with a mocked `microsoftAuthApiRef`
  * so the provider selection and OAuth-start interaction are driven end to end
- * through the actual component, without contacting GitHub.
+ * through the actual component, without contacting Azure.
  *
  * The core-components `SignInPage` common provider drives a selected provider
  * by calling `authApi.getBackstageIdentity({ instantPopup: true })` (the OAuth
@@ -42,27 +41,28 @@ const PROFILE: ProfileInfo = {
 };
 
 /**
- * Finds the GitHub provider's sign-in button. Each provider is rendered in its
- * own list item (`<li>`); the GitHub card is the one carrying the descriptive
- * message "Sign in using GitHub", so we scope the button lookup to that card.
+ * Finds the Microsoft provider's sign-in button. Each provider is rendered in
+ * its own list item (`<li>`); the Microsoft card is the one carrying the
+ * descriptive message "Sign in using Azure Entra ID", so we scope the button
+ * lookup to that card.
  */
-async function getGithubSignInButton(): Promise<HTMLElement> {
-  const message = await screen.findByText('Sign in using GitHub');
+async function getMicrosoftSignInButton(): Promise<HTMLElement> {
+  const message = await screen.findByText('Sign in using Azure Entra ID');
   const card = message.closest('li') as HTMLElement | null;
   if (!card) {
-    throw new Error('Could not locate the GitHub provider card');
+    throw new Error('Could not locate the Microsoft provider card');
   }
   return within(card).getByRole('button');
 }
 
 /**
- * Builds a mock of the GitHub auth API surface that the sign-in page uses.
+ * Builds a mock of the Microsoft auth API surface that the sign-in page uses.
  *
- * `getBackstageIdentity` is the OAuth start handler invoked when the GitHub
+ * `getBackstageIdentity` is the OAuth start handler invoked when the Microsoft
  * option is selected; the `behavior` controls whether it resolves (success),
  * rejects (failure/cancel/timeout), or resolves undefined (not configured).
  */
-function makeGithubAuthApi(behavior: {
+function makeMicrosoftAuthApi(behavior: {
   onSelect?: 'success' | 'reject' | 'undefined';
   rejectError?: Error;
 }) {
@@ -110,12 +110,9 @@ function makeGithubAuthApi(behavior: {
 }
 
 async function renderSignIn(
-  githubApi: ReturnType<typeof makeGithubAuthApi>,
+  microsoftApi: ReturnType<typeof makeMicrosoftAuthApi>,
   errorApi: MockErrorApi,
   onSignInSuccess: jest.Mock,
-  microsoftApi: ReturnType<typeof makeGithubAuthApi> = makeGithubAuthApi({
-    onSelect: 'undefined',
-  }),
 ) {
   // The core-components SignInPage reads `app.title`, and the retained guest
   // provider reads `backend.baseUrl`, via `useApi(configApiRef)` from React
@@ -132,7 +129,6 @@ async function renderSignIn(
       apis={[
         [configApiRef, configApi],
         [discoveryApiRef, mockApis.discovery()],
-        [githubAuthApiRef, githubApi as any],
         [microsoftAuthApiRef, microsoftApi as any],
         [errorApiRef, errorApi],
       ]}
@@ -142,41 +138,43 @@ async function renderSignIn(
   );
 }
 
-describe('AppSignInPage (GitHub sign-in surface)', () => {
-  it('presents a selectable GitHub sign-in option before authentication (4.1)', async () => {
-    const githubApi = makeGithubAuthApi({ onSelect: 'success' });
+describe('AppSignInPage (Microsoft sign-in surface)', () => {
+  it('presents a selectable Microsoft sign-in option before authentication', async () => {
+    const microsoftApi = makeMicrosoftAuthApi({ onSelect: 'success' });
     const errorApi = new MockErrorApi({ collect: true });
     const onSignInSuccess = jest.fn();
 
-    await renderSignIn(githubApi, errorApi, onSignInSuccess);
+    await renderSignIn(microsoftApi, errorApi, onSignInSuccess);
 
-    // The GitHub provider card (title "GitHub") is visible as a distinct,
+    // The Microsoft provider card (title "Microsoft") is visible as a distinct,
     // selectable option, with its descriptive message and a sign-in action.
     await waitFor(() => {
-      expect(screen.getByText('GitHub')).toBeInTheDocument();
+      expect(screen.getByText('Microsoft')).toBeInTheDocument();
     });
-    expect(screen.getByText('Sign in using GitHub')).toBeInTheDocument();
+    expect(
+      screen.getByText('Sign in using Azure Entra ID'),
+    ).toBeInTheDocument();
 
     // No session has been established simply by rendering the page.
     expect(onSignInSuccess).not.toHaveBeenCalled();
   });
 
-  it('starts the GitHub OAuth flow when the GitHub option is selected (4.2)', async () => {
-    const githubApi = makeGithubAuthApi({ onSelect: 'success' });
+  it('starts the Microsoft OAuth flow when the Microsoft option is selected', async () => {
+    const microsoftApi = makeMicrosoftAuthApi({ onSelect: 'success' });
     const errorApi = new MockErrorApi({ collect: true });
     const onSignInSuccess = jest.fn();
     const user = userEvent.setup();
 
-    await renderSignIn(githubApi, errorApi, onSignInSuccess);
+    await renderSignIn(microsoftApi, errorApi, onSignInSuccess);
 
-    // Find the GitHub provider card and click its sign-in button.
-    const signInButton = await getGithubSignInButton();
+    // Find the Microsoft provider card and click its sign-in button.
+    const signInButton = await getMicrosoftSignInButton();
     await user.click(signInButton);
 
-    // Selecting GitHub triggers the OAuth start handler (interactive, with a
+    // Selecting Microsoft triggers the OAuth start handler (interactive, with a
     // popup) rather than only the passive optional probe.
     await waitFor(() => {
-      expect(githubApi.getBackstageIdentity).toHaveBeenCalledWith(
+      expect(microsoftApi.getBackstageIdentity).toHaveBeenCalledWith(
         expect.objectContaining({ instantPopup: true }),
       );
     });
@@ -188,8 +186,8 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
     expect(errorApi.getErrors()).toHaveLength(0);
   });
 
-  it('returns to the sign-in page with an error and no session when the flow fails/cancels/times out (4.4)', async () => {
-    const githubApi = makeGithubAuthApi({
+  it('returns to the sign-in page with an error and no session when the flow fails/cancels/times out', async () => {
+    const microsoftApi = makeMicrosoftAuthApi({
       onSelect: 'reject',
       rejectError: new Error('Popup closed by user'),
     });
@@ -197,9 +195,9 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
     const onSignInSuccess = jest.fn();
     const user = userEvent.setup();
 
-    await renderSignIn(githubApi, errorApi, onSignInSuccess);
+    await renderSignIn(microsoftApi, errorApi, onSignInSuccess);
 
-    const signInButton = await getGithubSignInButton();
+    const signInButton = await getMicrosoftSignInButton();
     await user.click(signInButton);
 
     // A failed/cancelled/timed-out flow surfaces an error...
@@ -210,12 +208,12 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
     // ...establishes no session (onSignInSuccess never called)...
     expect(onSignInSuccess).not.toHaveBeenCalled();
 
-    // ...and keeps the user on the sign-in page (GitHub option still shown).
-    expect(screen.getByText('GitHub')).toBeInTheDocument();
+    // ...and keeps the user on the sign-in page (Microsoft option still shown).
+    expect(screen.getByText('Microsoft')).toBeInTheDocument();
   });
 
-  it('denies the session and surfaces "identity could not be resolved" on a resolver denial (4.5)', async () => {
-    const githubApi = makeGithubAuthApi({
+  it('denies the session and surfaces "identity could not be resolved" on a resolver denial', async () => {
+    const microsoftApi = makeMicrosoftAuthApi({
       onSelect: 'reject',
       rejectError: new Error('identity could not be resolved'),
     });
@@ -223,9 +221,9 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
     const onSignInSuccess = jest.fn();
     const user = userEvent.setup();
 
-    await renderSignIn(githubApi, errorApi, onSignInSuccess);
+    await renderSignIn(microsoftApi, errorApi, onSignInSuccess);
 
-    const signInButton = await getGithubSignInButton();
+    const signInButton = await getMicrosoftSignInButton();
     await user.click(signInButton);
 
     // The resolver denial is surfaced to the user as a posted error whose
@@ -237,7 +235,10 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
     });
 
     const serialized = denial
-      .map(e => `${e.error?.message ?? ''} ${(e.error as any)?.cause?.message ?? ''}`)
+      .map(
+        e =>
+          `${e.error?.message ?? ''} ${(e.error as any)?.cause?.message ?? ''}`,
+      )
       .join(' | ');
     expect(serialized).toMatch(/identity could not be resolved/i);
 
@@ -247,20 +248,17 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
 });
 
 describe('AppSignInPage (all providers present)', () => {
-  it('presents guest, GitHub, and Microsoft as selectable options before authentication (4.1, 4.2)', async () => {
-    const githubApi = makeGithubAuthApi({ onSelect: 'undefined' });
-    const microsoftApi = makeGithubAuthApi({ onSelect: 'undefined' });
+  it('presents guest and Microsoft as selectable options before authentication', async () => {
+    const microsoftApi = makeMicrosoftAuthApi({ onSelect: 'undefined' });
     const errorApi = new MockErrorApi({ collect: true });
     const onSignInSuccess = jest.fn();
 
-    await renderSignIn(githubApi, errorApi, onSignInSuccess, microsoftApi);
+    await renderSignIn(microsoftApi, errorApi, onSignInSuccess);
 
-    // All three provider cards are visible before authentication (4.1, 4.2).
+    // Both provider cards are visible before authentication.
     await waitFor(() => {
-      expect(screen.getByText('GitHub')).toBeInTheDocument();
+      expect(screen.getByText('Microsoft')).toBeInTheDocument();
     });
-    expect(screen.getByText('Sign in using GitHub')).toBeInTheDocument();
-    expect(screen.getByText('Microsoft')).toBeInTheDocument();
     expect(
       screen.getByText('Sign in using Azure Entra ID'),
     ).toBeInTheDocument();
@@ -269,33 +267,5 @@ describe('AppSignInPage (all providers present)', () => {
 
     // Rendering alone establishes no session.
     expect(onSignInSuccess).not.toHaveBeenCalled();
-  });
-
-  it('starts the Microsoft OAuth flow when the Microsoft option is selected (4.2)', async () => {
-    const githubApi = makeGithubAuthApi({ onSelect: 'undefined' });
-    const microsoftApi = makeGithubAuthApi({ onSelect: 'success' });
-    const errorApi = new MockErrorApi({ collect: true });
-    const onSignInSuccess = jest.fn();
-    const user = userEvent.setup();
-
-    await renderSignIn(githubApi, errorApi, onSignInSuccess, microsoftApi);
-
-    // Scope the button lookup to the Microsoft provider card.
-    const message = await screen.findByText('Sign in using Azure Entra ID');
-    const card = message.closest('li') as HTMLElement | null;
-    if (!card) {
-      throw new Error('Could not locate the Microsoft provider card');
-    }
-    await user.click(within(card).getByRole('button'));
-
-    // Selecting Microsoft triggers the interactive OAuth start.
-    await waitFor(() => {
-      expect(microsoftApi.getBackstageIdentity).toHaveBeenCalledWith(
-        expect.objectContaining({ instantPopup: true }),
-      );
-    });
-    await waitFor(() => {
-      expect(onSignInSuccess).toHaveBeenCalledTimes(1);
-    });
   });
 });

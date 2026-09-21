@@ -7,8 +7,7 @@
  */
 
 import { createBackend } from '@backstage/backend-defaults';
-import { authModuleGithubProvider } from './authModuleGithubProvider';
-import { authModuleMicrosoftProvider } from './authModuleMicrosoftProvider';
+import { authModuleMicrosoftProvider } from './modules/auth';
 
 const backend = createBackend();
 
@@ -30,9 +29,6 @@ backend.add(import('@backstage/plugin-auth-backend'));
 // See https://backstage.io/docs/backend-system/building-backends/migrating#the-auth-plugin
 backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
 // See https://backstage.io/docs/auth/guest/provider
-// Custom GitHub OAuth provider with a code-defined sign-in resolver
-// (github-authentication design, Approach B).
-backend.add(authModuleGithubProvider);
 // Custom Microsoft (Azure Entra ID) OAuth provider with a code-defined
 // trust-the-IdP sign-in resolver (azure-entraid-login design).
 backend.add(authModuleMicrosoftProvider);
@@ -77,6 +73,5 @@ backend.add(import('@backstage/plugin-signals-backend'));
 // mcp actions plugin
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
-backend.add(import('@internal/backstage-plugin-platform-backend-module-tenant-provisioning'));
 backend.add(import('@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane'));
 backend.start();

@@ -11,7 +11,7 @@
 
 import { mockServices } from '@backstage/backend-test-utils';
 import { JsonObject } from '@backstage/types';
-import { readCrossplaneProvisioningConfig } from '../config';
+import { readCrossplaneProvisioningConfig } from '../../lib/config';
 
 /** Build a `RootConfigService` from a `crossplaneProvisioning` block. */
 function makeConfig(crossplaneProvisioning: JsonObject) {

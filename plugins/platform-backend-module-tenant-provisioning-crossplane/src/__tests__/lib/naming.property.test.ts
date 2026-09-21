@@ -7,7 +7,7 @@
 
 import fc from 'fast-check';
 
-import { buildBranchName, buildPullRequestTitle } from '../naming';
+import { buildBranchName, buildPullRequestTitle } from '../../lib/naming';
 
 const tenantName = fc
   .tuple(

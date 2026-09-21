@@ -2594,18 +2594,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-auth-backend-module-github-provider@npm:^0.5.6":
-  version: 0.5.6
-  resolution: "@backstage/plugin-auth-backend-module-github-provider@npm:0.5.6"
-  dependencies:
-    "@backstage/backend-plugin-api": "npm:^1.10.0"
-    "@backstage/plugin-auth-node": "npm:^0.7.4"
-    passport-github2: "npm:^0.1.12"
-    zod: "npm:^3.25.76 || ^4.0.0"
-  checksum: 10c0/416b22f4e8574ce52e993fa6a5cd4ebc7c9d29a356a5fa6ce733c02aecd7cd9dbf9013c5660d2039a328d185bc43872a66c470edd3a2472e2d240e27564ebe30
-  languageName: node
-  linkType: hard
-
 "@backstage/plugin-auth-backend-module-guest-provider@npm:^0.2.22":
   version: 0.2.22
   resolution: "@backstage/plugin-auth-backend-module-guest-provider@npm:0.2.22"
@@ -5416,24 +5404,6 @@ __metadata:
     fast-check: "npm:^4.9.0"
     isomorphic-git: "npm:^1.41.9"
     yaml: "npm:^2.5.0"
-    zod: "npm:^4.5.4"
-  languageName: unknown
-  linkType: soft
-
-"@internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:^, @internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:plugins/platform-backend-module-tenant-provisioning":
-  version: 0.0.0-use.local
-  resolution: "@internal/backstage-plugin-platform-backend-module-tenant-provisioning@workspace:plugins/platform-backend-module-tenant-provisioning"
-  dependencies:
-    "@backstage/backend-plugin-api": "npm:^1.10.0"
-    "@backstage/backend-test-utils": "npm:^1.11.6"
-    "@backstage/cli": "npm:^0.36.5"
-    "@backstage/integration": "npm:^2.1.1"
-    "@backstage/plugin-catalog-backend": "npm:^3.9.0"
-    "@backstage/plugin-scaffolder-node": "npm:^0.13.6"
-    "@backstage/types": "npm:^1.2.2"
-    "@octokit/rest": "npm:^22.0.1"
-    fast-check: "npm:^4.9.0"
-    isomorphic-git: "npm:^1.41.9"
     zod: "npm:^4.5.4"
   languageName: unknown
   linkType: soft
@@ -13862,7 +13832,6 @@ __metadata:
     "@backstage/config": "npm:^1.3.8"
     "@backstage/plugin-app-backend": "npm:^0.5.17"
     "@backstage/plugin-auth-backend": "npm:^0.30.0"
-    "@backstage/plugin-auth-backend-module-github-provider": "npm:^0.5.6"
     "@backstage/plugin-auth-backend-module-guest-provider": "npm:^0.2.22"
     "@backstage/plugin-auth-backend-module-microsoft-provider": "npm:^0.3.19"
     "@backstage/plugin-auth-node": "npm:^0.7.4"
@@ -13889,7 +13858,6 @@ __metadata:
     "@backstage/plugin-signals-backend": "npm:^0.3.18"
     "@backstage/plugin-techdocs-backend": "npm:^2.2.3"
     "@backstage/plugin-user-settings-backend": "npm:^0.4.6"
-    "@internal/backstage-plugin-platform-backend-module-tenant-provisioning": "workspace:^"
     "@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane": "workspace:^"
     "@types/js-yaml": "npm:^4.0.9"
     "@types/supertest": "npm:^7.2.1"
@@ -25532,15 +25500,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"passport-github2@npm:^0.1.12":
-  version: 0.1.12
-  resolution: "passport-github2@npm:0.1.12"
-  dependencies:
-    passport-oauth2: "npm:1.x.x"
-  checksum: 10c0/70c763f40392f15509373d43014f4c32af8f4fa0a290c74f4b0125208c7aff5a0d55c16ead5663a964653622c759fa70adbc58e417577b206deb9a5a255b528c
-  languageName: node
-  linkType: hard
-
 "passport-microsoft@npm:^1.0.0":
   version: 1.1.0
   resolution: "passport-microsoft@npm:1.1.0"
@@ -25550,7 +25509,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"passport-oauth2@npm:1.8.0, passport-oauth2@npm:1.x.x, passport-oauth2@npm:^1.7.0":
+"passport-oauth2@npm:1.8.0, passport-oauth2@npm:^1.7.0":
   version: 1.8.0
   resolution: "passport-oauth2@npm:1.8.0"
   dependencies:

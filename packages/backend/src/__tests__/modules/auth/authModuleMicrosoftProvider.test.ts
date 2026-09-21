@@ -23,7 +23,7 @@ import type { JsonObject } from '@backstage/types';
 import authBackend from '@backstage/plugin-auth-backend';
 import authGuestProvider from '@backstage/plugin-auth-backend-module-guest-provider';
 import request from 'supertest';
-import { authModuleMicrosoftProvider } from './authModuleMicrosoftProvider';
+import { authModuleMicrosoftProvider } from '../../../modules/auth/authModuleMicrosoftProvider';
 
 /**
  * Base config shared by the boot scenarios. Auth environment is `development`

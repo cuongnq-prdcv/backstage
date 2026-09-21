@@ -12,7 +12,7 @@ import {
   createMicrosoftSignInResolver,
   deriveMicrosoftUserRef,
   selectProfileEmail,
-} from './microsoftSignInResolver';
+} from '../../../modules/auth/microsoftSignInResolver';
 
 /**
  * Tests for the Microsoft sign-in derivation helper and resolver.

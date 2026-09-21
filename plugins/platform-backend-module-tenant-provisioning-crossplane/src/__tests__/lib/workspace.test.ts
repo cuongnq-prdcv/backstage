@@ -12,7 +12,7 @@ import os from 'os';
 import path from 'path';
 import fc from 'fast-check';
 
-import { createWorkspace } from '../workspace';
+import { createWorkspace } from '../../lib/workspace';
 
 describe('createWorkspace', () => {
   const created: string[] = [];

@@ -168,13 +168,6 @@ auth:
   providers:
     # See https://backstage.io/docs/auth/guest/provider
     guest: {}
-    # See https://backstage.io/docs/auth/github/provider
-    github:
-      development:
-        clientId: ${GITHUB_CLIENT_ID}
-        clientSecret: ${GITHUB_CLIENT_SECRET}
-        # signIn.resolvers is intentionally omitted: the custom code sign-in
-        # resolver takes priority over config-based resolvers.
     # See https://backstage.io/docs/auth/microsoft/provider
     microsoft:
       development:
@@ -199,14 +192,8 @@ auth:
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
-# Configuration for the `tenant:provision` scaffolder action.
+# Configuration for the `tenant:provision-crossplane` scaffolder action.
 # Values are ${ENV_VAR} references per the Backstage config convention; never hardcode secrets or env-specific values.
-tenantProvisioning:
-  liveRepoUrl: ${TENANT_LIVE_REPO_URL}
-  liveRepoBranch: ${TENANT_LIVE_REPO_BRANCH} # optional; defaults to main
-  moduleSource: ${TERRAGRUNT_MODULE_SOURCE} # required
-  components: [dynamodb, ecr] # Allowed_Components; defaults to [dynamodb, ecr]
-
 crossplaneProvisioning:
   liveRepoUrl: ${CROSSPLANE_LIVE_REPO_URL} # required
   liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH} # optional; defaults to main
@@ -228,12 +215,6 @@ catalog:
     # Local example template
     - type: file
       target: ../../templates/template/template.yaml
-      rules:
-        - allow: [Template]
-
-    # Tenant provisioning template
-    - type: file
-      target: ../../templates/tenant-provisioning/template.yaml
       rules:
         - allow: [Template]
 

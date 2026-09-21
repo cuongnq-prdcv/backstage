@@ -4,8 +4,8 @@
  *
  * These verify the declarative `app-config` parts (Requirement 2): the
  * `microsoft` provider blocks exist under the correct environment keys with
- * exact `${AZURE_*}` references, the guest and github blocks are retained, and
- * no literal Azure value ever appears in any `app-config*` file.
+ * exact `${AZURE_*}` references, the guest block is retained, and no literal
+ * Azure value ever appears in any `app-config*` file.
  */
 
 import fs from 'fs';
@@ -13,7 +13,7 @@ import path from 'path';
 import yaml from 'js-yaml';
 
 /** Repository root, resolved relative to this test file (packages/backend/src). */
-const repoRoot = path.resolve(__dirname, '..', '..', '..');
+const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
 
 const devConfigPath = path.join(repoRoot, 'app-config.yaml');
 const prodConfigPath = path.join(repoRoot, 'app-config.production.yaml');
@@ -51,9 +51,8 @@ describe('app-config Microsoft provider shape', () => {
       expect(dev.tenantId).toBe('${AZURE_TENANT_ID}');
     });
 
-    it('retains the guest and github provider blocks (Req 2.5)', () => {
+    it('retains the guest provider block (Req 2.5)', () => {
       expect(config.auth.providers.guest).toBeDefined();
-      expect(config.auth.providers.github).toBeDefined();
     });
   });
 
@@ -72,9 +71,8 @@ describe('app-config Microsoft provider shape', () => {
       expect(prod.tenantId).toBe('${AZURE_TENANT_ID}');
     });
 
-    it('retains the guest and github provider blocks (Req 2.5)', () => {
+    it('retains the guest provider block (Req 2.5)', () => {
       expect(config.auth.providers.guest).toBeDefined();
-      expect(config.auth.providers.github).toBeDefined();
     });
   });
 });

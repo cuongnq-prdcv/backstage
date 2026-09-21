@@ -16,7 +16,7 @@ import { parse } from 'yaml';
 import {
   renderTenantEnvironmentManifest,
   type Environment,
-} from '../manifest';
+} from '../../lib/manifest';
 
 /** Ascending byte-order comparator (matches the renderer's ordering). */
 function byteOrder(a: string, b: string): number {

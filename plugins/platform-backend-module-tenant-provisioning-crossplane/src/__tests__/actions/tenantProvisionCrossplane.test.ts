@@ -27,7 +27,7 @@ const gitHelperMock = {
 const createGitHelperMock = jest.fn(() => gitHelperMock);
 const resolveLiveRepoTokenMock = jest.fn(async () => 'super-secret-token');
 
-jest.mock('../../git', () => ({
+jest.mock('../../lib/git', () => ({
   __esModule: true,
   CLONE_TIMEOUT_MS: 120_000,
   PUSH_TIMEOUT_MS: 60_000,

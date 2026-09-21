@@ -13,7 +13,7 @@
 
 import fc from 'fast-check';
 
-import { expandComponents } from '../components';
+import { expandComponents } from '../../lib/components';
 
 /** Allowed component names must match `^[a-z0-9_]+$` (Req 9.7). */
 const componentName = fc

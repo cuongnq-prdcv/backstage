@@ -7,7 +7,7 @@
 
 import fc from 'fast-check';
 
-import { redact, REDACTION_PLACEHOLDER } from '../redact';
+import { redact, REDACTION_PLACEHOLDER } from '../../lib/redact';
 
 describe('redact: secret redaction', () => {
   // Feature: tenant-provision-crossplane, Property 5: Secret redaction is total and content-preserving
