@@ -11,6 +11,7 @@ import {
   discoveryApiRef,
   errorApiRef,
   githubAuthApiRef,
+  microsoftAuthApiRef,
   type ProfileInfo,
 } from '@backstage/core-plugin-api';
 import { AppSignInPage } from './SignInPage';
@@ -112,6 +113,9 @@ async function renderSignIn(
   githubApi: ReturnType<typeof makeGithubAuthApi>,
   errorApi: MockErrorApi,
   onSignInSuccess: jest.Mock,
+  microsoftApi: ReturnType<typeof makeGithubAuthApi> = makeGithubAuthApi({
+    onSelect: 'undefined',
+  }),
 ) {
   // The core-components SignInPage reads `app.title`, and the retained guest
   // provider reads `backend.baseUrl`, via `useApi(configApiRef)` from React
@@ -129,6 +133,7 @@ async function renderSignIn(
         [configApiRef, configApi],
         [discoveryApiRef, mockApis.discovery()],
         [githubAuthApiRef, githubApi as any],
+        [microsoftAuthApiRef, microsoftApi as any],
         [errorApiRef, errorApi],
       ]}
     >
@@ -238,5 +243,59 @@ describe('AppSignInPage (GitHub sign-in surface)', () => {
 
     // No session is established on a resolver denial.
     expect(onSignInSuccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppSignInPage (all providers present)', () => {
+  it('presents guest, GitHub, and Microsoft as selectable options before authentication (4.1, 4.2)', async () => {
+    const githubApi = makeGithubAuthApi({ onSelect: 'undefined' });
+    const microsoftApi = makeGithubAuthApi({ onSelect: 'undefined' });
+    const errorApi = new MockErrorApi({ collect: true });
+    const onSignInSuccess = jest.fn();
+
+    await renderSignIn(githubApi, errorApi, onSignInSuccess, microsoftApi);
+
+    // All three provider cards are visible before authentication (4.1, 4.2).
+    await waitFor(() => {
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sign in using GitHub')).toBeInTheDocument();
+    expect(screen.getByText('Microsoft')).toBeInTheDocument();
+    expect(
+      screen.getByText('Sign in using Azure Entra ID'),
+    ).toBeInTheDocument();
+    // The retained guest provider card is also present (its title is "Guest").
+    expect(screen.getByText('Guest')).toBeInTheDocument();
+
+    // Rendering alone establishes no session.
+    expect(onSignInSuccess).not.toHaveBeenCalled();
+  });
+
+  it('starts the Microsoft OAuth flow when the Microsoft option is selected (4.2)', async () => {
+    const githubApi = makeGithubAuthApi({ onSelect: 'undefined' });
+    const microsoftApi = makeGithubAuthApi({ onSelect: 'success' });
+    const errorApi = new MockErrorApi({ collect: true });
+    const onSignInSuccess = jest.fn();
+    const user = userEvent.setup();
+
+    await renderSignIn(githubApi, errorApi, onSignInSuccess, microsoftApi);
+
+    // Scope the button lookup to the Microsoft provider card.
+    const message = await screen.findByText('Sign in using Azure Entra ID');
+    const card = message.closest('li') as HTMLElement | null;
+    if (!card) {
+      throw new Error('Could not locate the Microsoft provider card');
+    }
+    await user.click(within(card).getByRole('button'));
+
+    // Selecting Microsoft triggers the interactive OAuth start.
+    await waitFor(() => {
+      expect(microsoftApi.getBackstageIdentity).toHaveBeenCalledWith(
+        expect.objectContaining({ instantPopup: true }),
+      );
+    });
+    await waitFor(() => {
+      expect(onSignInSuccess).toHaveBeenCalledTimes(1);
+    });
   });
 });

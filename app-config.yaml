@@ -175,6 +175,14 @@ auth:
         clientSecret: ${GITHUB_CLIENT_SECRET}
         # signIn.resolvers is intentionally omitted: the custom code sign-in
         # resolver takes priority over config-based resolvers.
+    # See https://backstage.io/docs/auth/microsoft/provider
+    microsoft:
+      development:
+        clientId: ${AZURE_CLIENT_ID}
+        clientSecret: ${AZURE_CLIENT_SECRET}
+        tenantId: ${AZURE_TENANT_ID}
+        # signIn.resolvers is intentionally omitted: the custom code sign-in
+        # resolver (trust-the-IdP, azure-entraid-login design) takes priority.
   # see https://backstage.io/docs/ai/mcp-actions#client-id-metadata-documents
   # to learn more about client id metadata documents
   clientIdMetadataDocuments:

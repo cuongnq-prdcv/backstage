@@ -83,6 +83,9 @@ Tenant --> Backstage UI --> Software Template --> Scaffolder action(s)
 | `GITHUB_TOKEN`                    | PAT for reading/writing `hello-terragrunt-live` and other GitHub integrations | `app-config.yaml` |
 | `GITHUB_CLIENT_ID`                | Identifies the GitHub OAuth App used for GitHub sign-in | `app-config.yaml`, `app-config.production.yaml` |
 | `GITHUB_CLIENT_SECRET`            | Authenticates the GitHub OAuth App used for GitHub sign-in | `app-config.yaml`, `app-config.production.yaml` |
+| `AZURE_CLIENT_ID`                 | Identifies the Azure Entra ID App Registration used for Microsoft sign-in | `app-config.yaml`, `app-config.production.yaml` |
+| `AZURE_CLIENT_SECRET`             | Authenticates the Azure Entra ID App Registration used for Microsoft sign-in | `app-config.yaml`, `app-config.production.yaml` |
+| `AZURE_TENANT_ID`                 | Scopes Microsoft sign-in to a single Azure Entra ID tenant | `app-config.yaml`, `app-config.production.yaml` |
 | `POSTGRES_HOST` / `POSTGRES_PORT` | Production database connection                        | `app-config.production.yaml` |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | Production database credentials                    | `app-config.production.yaml` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (or role-based credentials) | AWS credentials used by the AWS SDK and by Terraform/Terragrunt when applying infra | Terragrunt/Terraform steps |
@@ -91,8 +94,11 @@ Tenant --> Backstage UI --> Software Template --> Scaffolder action(s)
 `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are both obtained from a GitHub OAuth App
 (GitHub → Settings → Developer settings → OAuth Apps).
 
-Never commit real values for these — including `GITHUB_CLIENT_SECRET` — use a local `.env`
-(already gitignored) or your deployment platform's secret manager.
+`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, and `AZURE_TENANT_ID` are obtained from an Azure Entra ID
+App Registration (Azure Portal → Microsoft Entra ID → App registrations).
+
+Never commit real values for these — including `GITHUB_CLIENT_SECRET` and `AZURE_CLIENT_SECRET` —
+use a local `.env` (already gitignored) or your deployment platform's secret manager.
 
 ## Quick start
 

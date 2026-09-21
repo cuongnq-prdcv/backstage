@@ -8,6 +8,7 @@
 
 import { createBackend } from '@backstage/backend-defaults';
 import { authModuleGithubProvider } from './authModuleGithubProvider';
+import { authModuleMicrosoftProvider } from './authModuleMicrosoftProvider';
 
 const backend = createBackend();
 
@@ -32,6 +33,9 @@ backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
 // Custom GitHub OAuth provider with a code-defined sign-in resolver
 // (github-authentication design, Approach B).
 backend.add(authModuleGithubProvider);
+// Custom Microsoft (Azure Entra ID) OAuth provider with a code-defined
+// trust-the-IdP sign-in resolver (azure-entraid-login design).
+backend.add(authModuleMicrosoftProvider);
 
 // catalog plugin
 backend.add(import('@backstage/plugin-catalog-backend'));
