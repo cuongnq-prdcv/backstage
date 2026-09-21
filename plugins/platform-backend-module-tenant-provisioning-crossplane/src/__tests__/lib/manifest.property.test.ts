@@ -1,10 +1,15 @@
 /**
  * Property-based tests for `renderTenantEnvironmentManifest` (manifest renderer).
  *
- * The renderer turns validated inputs into a `TenantEnvironment` YAML manifest.
- * These properties assert the rendered YAML round-trips the inputs (P1) and
- * that component rendering is data-driven, ordered, validated, and
- * deterministic (P8).
+ * The renderer turns validated inputs into an `XTenantEnvironment` XR YAML
+ * manifest. These properties assert the rendered YAML round-trips the inputs
+ * (P1) and that output is deterministic (P8).
+ *
+ * Components are DISABLED (retained for re-enable): the renderer emits no
+ * `spec.<component>.enabled` blocks, so the component-emit property is skipped.
+ * The retained defense-in-depth validation (invalid key / oversized map) is
+ * still exercised, since that code remains active alongside the commented emit
+ * loop.
  *
  * See the tenant-provision-crossplane design ("Testing Strategy" →
  * Property-based tests, Properties 1 and 8).
@@ -17,13 +22,6 @@ import {
   renderTenantEnvironmentManifest,
   type Environment,
 } from '../../lib/manifest';
-
-/** Ascending byte-order comparator (matches the renderer's ordering). */
-function byteOrder(a: string, b: string): number {
-  if (a < b) return -1;
-  if (a > b) return 1;
-  return 0;
-}
 
 const componentName = fc
   .array(
@@ -47,6 +45,16 @@ const tenantName = fc
 
 const environment = fc.constantFrom<Environment>('dev', 'staging', 'prod');
 
+const location = fc.constantFrom('japaneast', 'japanwest', 'southeastasia');
+
+const storageAccountSkuName = fc.constantFrom(
+  'Standard_LRS',
+  'Standard_GRS',
+  'Standard_RAGRS',
+  'Standard_ZRS',
+  'Premium_LRS',
+);
+
 /** A components record: unique valid keys (0..100) each mapped to a boolean. */
 const componentsRecord = fc
   .uniqueArray(componentName, { minLength: 0, maxLength: 100 })
@@ -65,16 +73,19 @@ const componentsRecord = fc
 const validInput = fc.record({
   tenantName,
   environment,
-  apiVersion: fc.constant('platform.hello-crossplane.io/v1alpha1'),
-  kind: fc.constant('TenantEnvironment'),
+  apiVersion: fc.constant('adp.example.org/v1alpha1'),
+  kind: fc.constant('XTenantEnvironment'),
+  compositionName: fc.constant('xtenantenvironments.azure.adp.example.org'),
+  location,
+  storageAccountSkuName,
   components: componentsRecord,
 });
 
 describe('renderTenantEnvironmentManifest', () => {
   // Feature: tenant-provision-crossplane, Property 1: Rendered manifest
   // round-trips the inputs
-  // Validates: Requirements 3.1, 3.2, 3.3, 1.5, 9.1, 9.3, 9.4, 9.8, 9.9
-  it('round-trips apiVersion/kind/metadata/spec and one enabled per component (Property 1)', () => {
+  // Validates: Requirements 3.1, 3.2
+  it('round-trips apiVersion/kind/metadata/spec into the XR shape (Property 1)', () => {
     fc.assert(
       fc.property(validInput, input => {
         const yaml = renderTenantEnvironmentManifest(input);
@@ -84,65 +95,58 @@ describe('renderTenantEnvironmentManifest', () => {
         expect(parsed.apiVersion).toBe(input.apiVersion);
         expect(parsed.kind).toBe(input.kind);
         expect(parsed.metadata.name).toBe(name);
-        expect(parsed.metadata.namespace).toBe(name);
-        expect(parsed.spec.tenant).toBe(input.tenantName);
-        expect(parsed.spec.environment).toBe(input.environment);
+        // XR is cluster-scoped: no namespace is emitted.
+        expect(parsed.metadata.namespace).toBeUndefined();
 
-        const componentKeys = Object.keys(input.components);
-        for (const key of componentKeys) {
-          expect(parsed.spec[key]).toEqual({ enabled: input.components[key] });
-        }
-        // spec has exactly tenant + environment + one block per component.
+        expect(parsed.spec.compositionRef).toEqual({
+          name: input.compositionName,
+        });
+        expect(parsed.spec.tenantName).toBe(input.tenantName);
+        expect(parsed.spec.environment).toBe(input.environment);
+        expect(parsed.spec.location).toBe(input.location);
+        expect(parsed.spec.storageAccountSkuName).toBe(
+          input.storageAccountSkuName,
+        );
+
+        // Components are disabled: spec has exactly these five keys and no
+        // component blocks, regardless of the components map contents.
         expect(Object.keys(parsed.spec).sort()).toEqual(
-          ['tenant', 'environment', ...componentKeys].sort(),
+          [
+            'compositionRef',
+            'environment',
+            'location',
+            'storageAccountSkuName',
+            'tenantName',
+          ].sort(),
         );
       }),
       { numRuns: 200 },
     );
   });
 
-  // Feature: tenant-provision-crossplane, Property 8: Component rendering is
-  // data-driven, ordered, validated, and deterministic
-  // Validates: Requirements 9.2, 9.3, 9.4, 9.7, 9.8, 3.9
-  it('emits component blocks in ascending byte order and is deterministic (Property 8)', () => {
+  // Feature: tenant-provision-crossplane, Property 8: Rendering is deterministic
+  // Validates: Requirements 3.9
+  it('is byte-for-byte deterministic for the same input (Property 8)', () => {
     fc.assert(
       fc.property(validInput, input => {
         const yaml = renderTenantEnvironmentManifest(input);
-
-        // Deterministic: re-rendering the same input is byte-for-byte identical.
         expect(renderTenantEnvironmentManifest(input)).toBe(yaml);
-
-        // Component keys appear in ascending byte order within spec. Scan the
-        // spec-level lines (indented two spaces, `  <key>:`) directly from the
-        // YAML text — `Object.keys` on a parsed object reorders integer-like
-        // keys, so text-order is the reliable source of truth.
-        const specStart = yaml.indexOf('\nspec:\n');
-        const specBody = yaml.slice(specStart + '\nspec:\n'.length);
-        const specKeysInDoc = specBody
-          .split('\n')
-          .map(line => /^ {2}"?([A-Za-z0-9_]+)"?:/.exec(line))
-          .filter((m): m is RegExpExecArray => m !== null)
-          .map(m => m[1]);
-        const componentKeysInDoc = specKeysInDoc.filter(
-          k => k !== 'tenant' && k !== 'environment',
-        );
-        const sorted = [...Object.keys(input.components)].sort(byteOrder);
-        expect(componentKeysInDoc).toEqual(sorted);
-        // tenant and environment come first, in that order.
-        expect(specKeysInDoc.slice(0, 2)).toEqual(['tenant', 'environment']);
       }),
       { numRuns: 200 },
     );
   });
 
-  it('rejects an invalid component key before producing output (Property 8)', () => {
+  it('rejects an invalid component key before producing output (retained check)', () => {
     const invalid = fc
-      .tuple(tenantName, environment)
-      .map(([t, e]) => ({
+      .tuple(tenantName, environment, location, storageAccountSkuName)
+      .map(([t, e, loc, sku]) => ({
         tenantName: t,
         environment: e,
-        apiVersion: 'platform.hello-crossplane.io/v1alpha1',
-        kind: 'TenantEnvironment',
+        apiVersion: 'adp.example.org/v1alpha1',
+        kind: 'XTenantEnvironment',
+        compositionName: 'xtenantenvironments.azure.adp.example.org',
+        location: loc,
+        storageAccountSkuName: sku,
         components: { 'Bad-Key': true } as Record<string, boolean>,
       }));
 
@@ -156,7 +160,7 @@ describe('renderTenantEnvironmentManifest', () => {
     );
   });
 
-  it('rejects an oversized component map before producing output (Property 8)', () => {
+  it('rejects an oversized component map before producing output (retained check)', () => {
     const oversized: Record<string, boolean> = {};
     for (let i = 0; i < 101; i++) {
       oversized[`component_${i}`] = true;
@@ -165,22 +169,38 @@ describe('renderTenantEnvironmentManifest', () => {
       renderTenantEnvironmentManifest({
         tenantName: 'acme',
         environment: 'dev',
-        apiVersion: 'platform.hello-crossplane.io/v1alpha1',
-        kind: 'TenantEnvironment',
+        apiVersion: 'adp.example.org/v1alpha1',
+        kind: 'XTenantEnvironment',
+        compositionName: 'xtenantenvironments.azure.adp.example.org',
+        location: 'japaneast',
+        storageAccountSkuName: 'Standard_LRS',
         components: oversized,
       }),
     ).toThrow(/exceeds the allowed maximum/);
   });
 
-  it('emits only tenant and environment when the components map is empty (Req 9.9)', () => {
+  it('emits no component blocks even when the components map is non-empty (components disabled)', () => {
     const yaml = renderTenantEnvironmentManifest({
       tenantName: 'acme',
       environment: 'dev',
-      apiVersion: 'platform.hello-crossplane.io/v1alpha1',
-      kind: 'TenantEnvironment',
-      components: {},
+      apiVersion: 'adp.example.org/v1alpha1',
+      kind: 'XTenantEnvironment',
+      compositionName: 'xtenantenvironments.azure.adp.example.org',
+      location: 'japaneast',
+      storageAccountSkuName: 'Standard_LRS',
+      components: { table: true, repository: false },
     });
     const parsed = parse(yaml);
-    expect(Object.keys(parsed.spec).sort()).toEqual(['environment', 'tenant']);
+    expect(Object.keys(parsed.spec).sort()).toEqual(
+      [
+        'compositionRef',
+        'environment',
+        'location',
+        'storageAccountSkuName',
+        'tenantName',
+      ].sort(),
+    );
+    expect(parsed.spec.table).toBeUndefined();
+    expect(parsed.spec.repository).toBeUndefined();
   });
 });

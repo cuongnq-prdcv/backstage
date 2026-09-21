@@ -42,8 +42,37 @@ describe('readCrossplaneProvisioningConfig', () => {
 
     const result = readCrossplaneProvisioningConfig(config);
 
-    expect(result.apiVersion).toBe('platform.hello-crossplane.io/v1alpha1');
-    expect(result.kind).toBe('TenantEnvironment');
+    expect(result.apiVersion).toBe('adp.example.org/v1alpha1');
+    expect(result.kind).toBe('XTenantEnvironment');
+  });
+
+  it('defaults compositionName/location/sku when absent (Req 1.10)', () => {
+    const config = makeConfig({ ...baseValid });
+
+    const result = readCrossplaneProvisioningConfig(config);
+
+    expect(result.compositionName).toBe(
+      'xtenantenvironments.azure.adp.example.org',
+    );
+    expect(result.defaultLocation).toBe('japaneast');
+    expect(result.defaultStorageAccountSkuName).toBe('Standard_LRS');
+  });
+
+  it('uses the configured compositionName/location/sku when supplied (Req 1.10)', () => {
+    const config = makeConfig({
+      ...baseValid,
+      compositionName: 'xtenantenvironments.aws.adp.example.org',
+      defaultLocation: 'southeastasia',
+      defaultStorageAccountSkuName: 'Standard_GRS',
+    });
+
+    const result = readCrossplaneProvisioningConfig(config);
+
+    expect(result.compositionName).toBe(
+      'xtenantenvironments.aws.adp.example.org',
+    );
+    expect(result.defaultLocation).toBe('southeastasia');
+    expect(result.defaultStorageAccountSkuName).toBe('Standard_GRS');
   });
 
   it('uses the configured apiVersion and kind when supplied (Req 1.11)', () => {
@@ -136,8 +165,11 @@ describe('readCrossplaneProvisioningConfig', () => {
     expect(readCrossplaneProvisioningConfig(config)).toEqual({
       liveRepoUrl: baseValid.liveRepoUrl,
       liveRepoBranch: 'main',
-      apiVersion: 'platform.hello-crossplane.io/v1alpha1',
-      kind: 'TenantEnvironment',
+      apiVersion: 'adp.example.org/v1alpha1',
+      kind: 'XTenantEnvironment',
+      compositionName: 'xtenantenvironments.azure.adp.example.org',
+      defaultLocation: 'japaneast',
+      defaultStorageAccountSkuName: 'Standard_LRS',
       allowedComponents: ['table', 'repository'],
     });
   });

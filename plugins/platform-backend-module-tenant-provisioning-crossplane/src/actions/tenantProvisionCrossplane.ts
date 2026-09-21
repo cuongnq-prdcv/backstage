@@ -24,6 +24,11 @@ import {
 export interface TenantProvisionCrossplaneInput {
   tenantName: string;
   environment: Environment;
+  /** Azure region; defaults to config.defaultLocation when omitted. */
+  location?: string;
+  /** Azure Storage SKU; defaults to config.defaultStorageAccountSkuName when omitted. */
+  storageAccountSkuName?: string;
+  /** DISABLED — retained for re-enable; accepted but not emitted. */
   selectedComponents?: string[];
 }
 
@@ -41,24 +46,36 @@ export interface CreateTenantProvisionCrossplaneActionOptions {
 
 /**
  * Tenant name pattern shared by the input schema and the fail-fast guard.
- * Matches the Crossplane XRD `spec.tenant` pattern (lowercase RFC1123-style:
+ * Matches the Crossplane XRD `spec.tenantName` pattern (lowercase RFC1123-style:
  * starts/ends alphanumeric, 3-22 chars, hyphens allowed in the middle), so the
- * rendered manifest name/namespace and `spec.tenant` are always valid for
- * Kubernetes and the TenantEnvironment XRD.
+ * rendered `metadata.name` and `spec.tenantName` are always valid for
+ * Kubernetes and the XTenantEnvironment XRD.
  */
 const TENANT_NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]$/;
 
 /** The fixed set of valid environments. */
 const ENVIRONMENTS = ['dev', 'staging', 'prod'] as const;
 
+/** Supported Azure regions offered by the form (small curated set). */
+const LOCATIONS = ['japaneast', 'japanwest', 'southeastasia'] as const;
+
+/** Supported Azure Storage account SKUs. */
+const STORAGE_ACCOUNT_SKU_NAMES = [
+  'Standard_LRS',
+  'Standard_GRS',
+  'Standard_RAGRS',
+  'Standard_ZRS',
+  'Premium_LRS',
+] as const;
+
 /**
  * Creates the `tenant:provision-crossplane` custom scaffolder action.
  *
- * Validates inputs and expands the selected components entirely in-process
- * before creating any working directory or touching the network (fail-fast,
- * Req 8.1-8.4). It then clones the Crossplane live repository, renders and
- * writes the `TenantEnvironment` manifest at
- * `examples/tenantenvironments/<tenant>-<environment>.yaml`, creates a
+ * Validates inputs and resolves the Azure location/SKU against config defaults
+ * entirely in-process before creating any working directory or touching the
+ * network (fail-fast, Req 8.1-8.4). It then clones the Crossplane live
+ * repository, renders and writes the `XTenantEnvironment` XR manifest at
+ * `tenants/<tenant>/<environment>/xr.yaml`, creates a
  * timestamped feature branch, commits exactly that file, pushes it, and opens
  * (or reuses) a pull request, exposing `pullRequestUrl` and `branchName` as
  * outputs (Req 5.4). Every path after the workspace is created runs inside a
@@ -73,7 +90,7 @@ export function createTenantProvisionCrossplaneAction(
   return createTemplateAction({
     id: 'tenant:provision-crossplane',
     description:
-      'Renders/updates a tenant TenantEnvironment manifest in the Crossplane live repo and opens a pull request.',
+      'Renders/updates a tenant XTenantEnvironment XR manifest in the Crossplane live repo and opens a pull request.',
     schema: {
       input: {
         tenantName: z =>
@@ -88,11 +105,25 @@ export function createTenantProvisionCrossplaneAction(
           z
             .enum(ENVIRONMENTS)
             .describe('Deployment environment: one of dev, staging, prod'),
+        location: z =>
+          z
+            .enum(LOCATIONS)
+            .optional()
+            .describe(
+              'Azure region for spec.location; defaults to the configured defaultLocation when omitted',
+            ),
+        storageAccountSkuName: z =>
+          z
+            .enum(STORAGE_ACCOUNT_SKU_NAMES)
+            .optional()
+            .describe(
+              'Azure Storage SKU for spec.storageAccountSkuName; defaults to the configured defaultStorageAccountSkuName when omitted',
+            ),
         selectedComponents: z =>
           z
             .array(z.string())
             .optional()
-            .describe('Component names the user selected; defaults to []'),
+            .describe('DISABLED — retained; accepted but not emitted'),
       },
       output: {
         pullRequestUrl: z =>
@@ -103,7 +134,8 @@ export function createTenantProvisionCrossplaneAction(
     },
     async handler(ctx) {
       const executionStart = new Date();
-      const { tenantName, environment, selectedComponents } = ctx.input;
+      const { tenantName, environment, location, storageAccountSkuName, selectedComponents } =
+        ctx.input;
       const selected = selectedComponents ?? [];
 
       // --- Fail-fast validation (before any side effect, Req 8.1-8.4) --------
@@ -169,13 +201,21 @@ export function createTenantProvisionCrossplaneAction(
         });
 
         // Compute the confined target path
-        // examples/tenantenvironments/<tenant>-<env>.yaml (Req 3.4, 3.7).
+        // tenants/<tenant>/<env>/xr.yaml (Req 3.4, 3.7).
         const relativeTarget = path.join(
-          'examples',
-          'tenantenvironments',
-          `${tenantName}-${environment}.yaml`,
+          'tenants',
+          tenantName,
+          environment,
+          'xr.yaml',
         );
         const targetPath = workspace.resolveWithin(relativeTarget);
+
+        // Resolve the Azure fields, falling back to the configured defaults
+        // when the action input omits them (Req 1.5).
+        const resolvedLocation = location ?? provisioningConfig.defaultLocation;
+        const resolvedStorageAccountSkuName =
+          storageAccountSkuName ??
+          provisioningConfig.defaultStorageAccountSkuName;
 
         // Render and write the manifest, creating parent folders and
         // overwriting an existing file (Req 3.1-3.6, 3.8).
@@ -184,6 +224,10 @@ export function createTenantProvisionCrossplaneAction(
           environment,
           apiVersion: provisioningConfig.apiVersion,
           kind: provisioningConfig.kind,
+          compositionName: provisioningConfig.compositionName,
+          location: resolvedLocation,
+          storageAccountSkuName: resolvedStorageAccountSkuName,
+          // DISABLED — retained: expansion result passed for wiring, not emitted.
           components,
         });
         try {
@@ -191,7 +235,7 @@ export function createTenantProvisionCrossplaneAction(
           await fs.writeFile(targetPath, contents, 'utf8');
         } catch (err) {
           throw new Error(
-            `Failed to write the tenant TenantEnvironment manifest: ${redact(
+            `Failed to write the tenant XTenantEnvironment manifest: ${redact(
               String((err as Error).message ?? err),
               secrets,
             )}`,

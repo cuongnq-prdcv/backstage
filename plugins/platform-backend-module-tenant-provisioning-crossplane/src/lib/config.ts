@@ -9,11 +9,33 @@ export interface CrossplaneProvisioningConfig {
   liveRepoUrl: string;
   /** crossplaneProvisioning.liveRepoBranch (<- ${CROSSPLANE_LIVE_REPO_BRANCH}); defaults to `main`. */
   liveRepoBranch: string;
-  /** crossplaneProvisioning.apiVersion; defaults to `platform.hello-crossplane.io/v1alpha1`. */
+  /** crossplaneProvisioning.apiVersion; defaults to `adp.example.org/v1alpha1`. */
   apiVersion: string;
-  /** crossplaneProvisioning.kind; defaults to `TenantEnvironment`. */
+  /** crossplaneProvisioning.kind; defaults to `XTenantEnvironment`. */
   kind: string;
-  /** crossplaneProvisioning.components; the Allowed_Components; defaults to `['table', 'repository']`. */
+  /**
+   * crossplaneProvisioning.compositionName; the `spec.compositionRef.name`
+   * written into the rendered XR. Defaults to
+   * `xtenantenvironments.azure.adp.example.org`.
+   */
+  compositionName: string;
+  /**
+   * crossplaneProvisioning.defaultLocation; the fallback `spec.location`
+   * (Azure region) used when the action input omits it. Defaults to
+   * `japaneast`.
+   */
+  defaultLocation: string;
+  /**
+   * crossplaneProvisioning.defaultStorageAccountSkuName; the fallback
+   * `spec.storageAccountSkuName` (Azure Storage SKU) used when the action input
+   * omits it. Defaults to `Standard_LRS`.
+   */
+  defaultStorageAccountSkuName: string;
+  /**
+   * crossplaneProvisioning.components; the Allowed_Components; defaults to
+   * `['table', 'repository']`. DISABLED — retained for re-enable; read but not
+   * rendered into the manifest while component emission is off.
+   */
   allowedComponents: string[];
 }
 
@@ -21,10 +43,22 @@ export interface CrossplaneProvisioningConfig {
 const DEFAULT_LIVE_REPO_BRANCH = 'main';
 
 /** Default `apiVersion` used when `crossplaneProvisioning.apiVersion` is not configured. */
-const DEFAULT_API_VERSION = 'platform.hello-crossplane.io/v1alpha1';
+const DEFAULT_API_VERSION = 'adp.example.org/v1alpha1';
 
 /** Default `kind` used when `crossplaneProvisioning.kind` is not configured. */
-const DEFAULT_KIND = 'TenantEnvironment';
+const DEFAULT_KIND = 'XTenantEnvironment';
+
+/** Default `compositionName` used when `crossplaneProvisioning.compositionName` is not configured. */
+const DEFAULT_COMPOSITION_NAME = 'xtenantenvironments.azure.adp.example.org';
+
+/** Default `defaultLocation` used when `crossplaneProvisioning.defaultLocation` is not configured. */
+const DEFAULT_LOCATION = 'japaneast';
+
+/**
+ * Default `defaultStorageAccountSkuName` used when
+ * `crossplaneProvisioning.defaultStorageAccountSkuName` is not configured.
+ */
+const DEFAULT_STORAGE_ACCOUNT_SKU_NAME = 'Standard_LRS';
 
 /** Default Allowed_Components used when `crossplaneProvisioning.components` is not configured. */
 const DEFAULT_ALLOWED_COMPONENTS = ['table', 'repository'];
@@ -41,8 +75,10 @@ const MAX_ALLOWED_COMPONENTS = 100;
  * - `liveRepoUrl`, `liveRepoBranch`, `apiVersion`, and `kind` are read via
  *   `getOptionalString`; `components` via `getOptionalStringArray`.
  * - `liveRepoBranch` defaults to `main` when absent (Req 1.7).
- * - `apiVersion`/`kind` default to their Crossplane values when absent (Req 1.11).
- * - `components` defaults to `['table', 'repository']` when absent (Req 1.10).
+ * - `apiVersion`/`kind` default to `adp.example.org/v1alpha1` / `XTenantEnvironment` (Req 1.11).
+ * - `compositionName`/`defaultLocation`/`defaultStorageAccountSkuName` default to their
+ *   Azure values when absent (Req 1.10).
+ * - `components` defaults to `['table', 'repository']` when absent (Req 1.12; disabled/retained).
  * - Throws a config error naming the key when `liveRepoUrl` is absent or empty (Req 1.8).
  * - Rejects an allowed name not matching `^[a-z0-9_]+$` (Req 9.7) and an allowed-set
  *   larger than 100 entries (Req 9.8), before returning.
@@ -63,6 +99,16 @@ export function readCrossplaneProvisioningConfig(
     DEFAULT_API_VERSION;
   const kind =
     config.getOptionalString('crossplaneProvisioning.kind') ?? DEFAULT_KIND;
+  const compositionName =
+    config.getOptionalString('crossplaneProvisioning.compositionName') ??
+    DEFAULT_COMPOSITION_NAME;
+  const defaultLocation =
+    config.getOptionalString('crossplaneProvisioning.defaultLocation') ??
+    DEFAULT_LOCATION;
+  const defaultStorageAccountSkuName =
+    config.getOptionalString(
+      'crossplaneProvisioning.defaultStorageAccountSkuName',
+    ) ?? DEFAULT_STORAGE_ACCOUNT_SKU_NAME;
   const allowedComponents =
     config.getOptionalStringArray('crossplaneProvisioning.components') ?? [
       ...DEFAULT_ALLOWED_COMPONENTS,
@@ -93,6 +139,9 @@ export function readCrossplaneProvisioningConfig(
     liveRepoBranch,
     apiVersion,
     kind,
+    compositionName,
+    defaultLocation,
+    defaultStorageAccountSkuName,
     allowedComponents,
   };
 }

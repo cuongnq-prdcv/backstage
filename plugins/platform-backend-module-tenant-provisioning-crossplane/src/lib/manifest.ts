@@ -3,13 +3,26 @@ import { stringify } from 'yaml';
 /** Deployment environment accepted by the tenant:provision-crossplane action. */
 export type Environment = 'dev' | 'staging' | 'prod';
 
-/** Input to the pure TenantEnvironment manifest renderer. */
+/** Input to the pure XTenantEnvironment XR manifest renderer. */
 export interface RenderManifestInput {
   tenantName: string;
   environment: Environment;
   apiVersion: string;
   kind: string;
-  /** component name -> enabled; e.g. `{ repository: false, table: true }`. */
+  /** `spec.compositionRef.name` (selects the Azure composition). */
+  compositionName: string;
+  /** `spec.location` (Azure region), e.g. `japaneast`. */
+  location: string;
+  /** `spec.storageAccountSkuName` (Azure Storage SKU), e.g. `Standard_LRS`. */
+  storageAccountSkuName: string;
+  /**
+   * component name -> enabled; e.g. `{ repository: false, table: true }`.
+   *
+   * DISABLED — retained for re-enable. Accepted so the action wiring
+   * (`expandComponents`) keeps compiling, but NOT emitted into the manifest
+   * while component emission is off. Re-enable by uncommenting the emit loop
+   * below.
+   */
   components: Record<string, boolean>;
 }
 
@@ -31,12 +44,12 @@ function byteOrder(a: string, b: string): number {
 }
 
 /**
- * Renders the tenant `TenantEnvironment` manifest (YAML) from the given inputs.
+ * Renders the tenant `XTenantEnvironment` XR manifest (YAML) from the given
+ * inputs.
  *
- * Pure function (no I/O). Builds a plain object with a fixed key order and
- * component keys sorted in ascending lexicographic byte order, then serializes
- * it with `yaml.stringify`, so the same inputs always yield byte-for-byte
- * identical output (Req 3.9, 9.4).
+ * Pure function (no I/O). Builds a plain object with a fixed key order, then
+ * serializes it with `yaml.stringify`, so the same inputs always yield
+ * byte-for-byte identical output (Req 3.9).
  *
  * Emitted shape:
  *
@@ -45,36 +58,51 @@ function byteOrder(a: string, b: string): number {
  * kind: <kind>
  * metadata:
  *   name: <tenant>-<environment>
- *   namespace: <tenant>-<environment>
  * spec:
- *   tenant: <tenant>
+ *   compositionRef:
+ *     name: <compositionName>
+ *   tenantName: <tenant>
  *   environment: <environment>
- *   <component>:
- *     enabled: <bool>
+ *   location: <location>
+ *   storageAccountSkuName: <storageAccountSkuName>
  * ```
  *
- * The `<component>.enabled` entries are produced with the same logic for every
- * key (no per-name branching), sorted by key. A missing/undefined value is
- * treated as `false`. An empty `components` map yields a `spec` block with only
- * `tenant` and `environment`.
+ * The XR is cluster-scoped, so no `metadata.namespace` is emitted.
+ *
+ * Components are DISABLED (retained for re-enable): the `spec.<component>.enabled`
+ * emit loop is commented out, so no component blocks appear in the output. The
+ * component-key validation is retained alongside it.
  *
  * Defense-in-depth validation runs before any output is produced.
  *
- * @throws If any component key does not match `^[a-z0-9_]+$`.
- * @throws If the `components` map has more than 100 entries.
- * @throws If `apiVersion`, `kind`, or `tenantName` contains a newline (which
- *   would break the YAML scalar).
+ * @throws If `apiVersion`, `kind`, `tenantName`, `compositionName`, `location`,
+ *   or `storageAccountSkuName` contains a newline (which would break the YAML
+ *   scalar).
+ * @throws If any component key does not match `^[a-z0-9_]+$` (retained check).
+ * @throws If the `components` map has more than 100 entries (retained check).
  */
 export function renderTenantEnvironmentManifest(
   input: RenderManifestInput,
 ): string {
-  const { tenantName, environment, apiVersion, kind, components } = input;
+  const {
+    tenantName,
+    environment,
+    apiVersion,
+    kind,
+    compositionName,
+    location,
+    storageAccountSkuName,
+    components,
+  } = input;
 
   // Defense-in-depth: reject scalars that would break the emitted YAML.
   for (const [label, value] of [
     ['apiVersion', apiVersion],
     ['kind', kind],
     ['tenantName', tenantName],
+    ['compositionName', compositionName],
+    ['location', location],
+    ['storageAccountSkuName', storageAccountSkuName],
   ] as const) {
     if (/[\r\n]/.test(value)) {
       throw new Error(`Invalid ${label}: must not contain a newline`);
@@ -83,7 +111,8 @@ export function renderTenantEnvironmentManifest(
 
   const keys = Object.keys(components);
 
-  // Defense-in-depth: reject an oversized component map.
+  // Defense-in-depth: reject an oversized component map. (Retained while
+  // components are disabled so re-enabling needs no re-validation.)
   if (keys.length > MAX_COMPONENTS) {
     throw new Error(
       `Component count exceeds the allowed maximum of ${MAX_COMPONENTS}`,
@@ -102,21 +131,29 @@ export function renderTenantEnvironmentManifest(
   const name = `${tenantName}-${environment}`;
 
   // Build the spec as a Map so key order is preserved exactly as inserted.
-  // A plain object would reorder integer-like keys (e.g. "0", "5") ahead of
-  // string keys, which would corrupt both the tenant/environment ordering and
-  // the ascending byte-order of component keys. `yaml.stringify` serializes a
-  // Map preserving insertion order.
+  // A plain object would reorder integer-like keys ahead of string keys.
+  // `yaml.stringify` serializes a Map preserving insertion order.
   const spec = new Map<string, unknown>();
-  spec.set('tenant', tenantName);
+  spec.set('compositionRef', new Map([['name', compositionName]]));
+  spec.set('tenantName', tenantName);
   spec.set('environment', environment);
-  for (const key of [...keys].sort(byteOrder)) {
-    spec.set(key, new Map([['enabled', components[key] === true]]));
-  }
+  spec.set('location', location);
+  spec.set('storageAccountSkuName', storageAccountSkuName);
 
-  const metadata = new Map<string, string>([
-    ['name', name],
-    ['namespace', name],
-  ]);
+  // --- Components emit (DISABLED — retained for re-enable) -----------------
+  // Uncomment to render one `spec.<component>.enabled` entry per component,
+  // sorted in ascending byte order (Req 3.3, 9.2-9.4):
+  //
+  // for (const key of [...keys].sort(byteOrder)) {
+  //   spec.set(key, new Map([['enabled', components[key] === true]]));
+  // }
+  // -------------------------------------------------------------------------
+  // Reference the comparator + values so they are not flagged as unused while
+  // the emit loop is commented out; this is a no-op.
+  void byteOrder;
+  void components;
+
+  const metadata = new Map<string, string>([['name', name]]);
 
   const manifest = new Map<string, unknown>([
     ['apiVersion', apiVersion],

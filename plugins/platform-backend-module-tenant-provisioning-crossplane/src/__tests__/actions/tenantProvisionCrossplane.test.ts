@@ -96,10 +96,10 @@ describe('tenant:provision-crossplane handler', () => {
       /^devops\/acme-dev-\d{8}-\d{6}$/,
     );
 
-    // The committed file path is the manifest under examples/tenantenvironments.
+    // The committed file path is the XR manifest under tenants/<tenant>/<env>.
     const commitArg = gitHelperMock.createBranchCommitPush.mock.calls[0][0];
     expect(commitArg.filePath).toContain(
-      path.join('examples', 'tenantenvironments', 'acme-dev.yaml'),
+      path.join('tenants', 'acme', 'dev', 'xr.yaml'),
     );
     // Working directory cleaned up on success (Req 6.1).
     await expect(fs.readdir(baseDir)).resolves.toEqual([]);
@@ -124,9 +124,13 @@ describe('tenant:provision-crossplane handler', () => {
       logger: mockServices.logger.mock(),
     }).handler(ctx);
 
-    expect(committed).toContain('kind: TenantEnvironment');
+    expect(committed).toContain('kind: XTenantEnvironment');
     expect(committed).toContain('name: acme-dev');
-    expect(committed).toMatch(/table:\n\s+enabled: true/);
+    expect(committed).toContain('tenantName: acme');
+    expect(committed).toContain('location: japaneast');
+    expect(committed).toContain('storageAccountSkuName: Standard_LRS');
+    // Components are disabled: no spec.<component>.enabled block is emitted.
+    expect(committed).not.toMatch(/table:\n\s+enabled:/);
   });
 
   it('cleans up the working directory on failure (Req 6.2)', async () => {

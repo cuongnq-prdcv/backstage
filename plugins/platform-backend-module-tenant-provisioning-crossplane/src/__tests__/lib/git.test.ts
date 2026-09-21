@@ -122,14 +122,14 @@ describe('GitHelper branch / commit / push', () => {
     await h.createBranchCommitPush({
       branch: 'devops/acme-dev-1',
       baseBranch: 'main',
-      filePath: '/tmp/x/examples/tenantenvironments/acme-dev.yaml',
+      filePath: '/tmp/x/tenants/acme/dev/xr.yaml',
       message: 'Provision tenant acme (dev)',
       timeoutMs: 60_000,
     });
 
     expect(gitMock.add).toHaveBeenCalledTimes(1);
     expect(gitMock.add.mock.calls[0][0].filepath).toBe(
-      'examples/tenantenvironments/acme-dev.yaml',
+      'tenants/acme/dev/xr.yaml',
     );
     expect(gitMock.commit).toHaveBeenCalledTimes(1);
     expect(gitMock.push).toHaveBeenCalledTimes(1);
@@ -144,7 +144,7 @@ describe('GitHelper branch / commit / push', () => {
       h.createBranchCommitPush({
         branch: 'devops/acme-dev-1',
         baseBranch: 'main',
-        filePath: '/tmp/x/examples/tenantenvironments/acme-dev.yaml',
+        filePath: '/tmp/x/tenants/acme/dev/xr.yaml',
         message: 'm',
         timeoutMs: 60_000,
       }),

@@ -6,16 +6,17 @@ metadata:
   title: Tenant Provisioning (Crossplane)
   description: >-
     Tenant-provisioning template (Crossplane): collects the inputs needed to
-    provision or update a tenant's TenantEnvironment manifest (tenant name,
-    environment, and optional components) and opens a pull request against the
-    Crossplane live repository.
+    provision or update a tenant's XTenantEnvironment XR manifest (tenant name,
+    environment, Azure location, and storage account SKU) and opens a pull
+    request against the Crossplane live repository.
 spec:
   owner: user:guest
   type: service
 
   # The input form: collects the values the tenant:provision-crossplane action
-  # maps to the TenantEnvironment spec (tenant, environment, and one
-  # spec.<component>.enabled per selected component).
+  # maps to the XTenantEnvironment XR spec (tenantName, environment, location,
+  # storageAccountSkuName; compositionRef.name comes from config). The
+  # components selector is retained but commented out (disabled).
   parameters:
     - title: Tenant provisioning inputs
       required:
@@ -27,8 +28,8 @@ spec:
           type: string
           description: >-
             Identifier for the tenant (e.g. acme). Used as the tenant's
-            manifest name/namespace prefix and written to the spec.tenant field.
-            Must be lowercase RFC1123: start/end alphanumeric, 3-22 chars,
+            manifest metadata name prefix and written to the spec.tenantName
+            field. Must be lowercase RFC1123: start/end alphanumeric, 3-22 chars,
             hyphens allowed in the middle.
           pattern: '^[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]$'
           ui:autofocus: true
@@ -37,38 +38,68 @@ spec:
           type: string
           description: >-
             Deployment environment for this tenant configuration. Used as the
-            manifest name/namespace suffix and written to the spec.environment
+            manifest metadata name suffix and written to the spec.environment
             field. Must be one of dev, staging, prod.
           enum:
             - dev
             - staging
             - prod
           default: dev
-        components:
-          title: Components
-          description: Optional components to enable for this tenant/environment.
-          type: array
-          items:
-            type: string
-            enum:
-              - table
-              - repository
-          uniqueItems: true
-          default: []
-          ui:widget: checkboxes
+        location:
+          title: Location
+          type: string
+          description: >-
+            Azure region written to the spec.location field. Defaults to
+            japaneast.
+          enum:
+            - japaneast
+            - japanwest
+            - southeastasia
+          default: japaneast
+        storageAccountSkuName:
+          title: Storage account SKU
+          type: string
+          description: >-
+            Azure Storage account SKU written to the spec.storageAccountSkuName
+            field. Defaults to Standard_LRS.
+          enum:
+            - Standard_LRS
+            - Standard_GRS
+            - Standard_RAGRS
+            - Standard_ZRS
+            - Premium_LRS
+          default: Standard_LRS
+        # DISABLED — retained for re-enable. The components selector rendered one
+        # spec.<component>.enabled block per selection. Uncomment to restore it
+        # (and uncomment the emit loop in manifest.ts + the step input below).
+        # components:
+        #   title: Components
+        #   description: Optional components to enable for this tenant/environment.
+        #   type: array
+        #   items:
+        #     type: string
+        #     enum:
+        #       - table
+        #       - repository
+        #   uniqueItems: true
+        #   default: []
+        #   ui:widget: checkboxes
 
   # Invoke the tenant:provision-crossplane scaffolder action, which
-  # renders/updates the tenant's TenantEnvironment manifest in the Crossplane
+  # renders/updates the tenant's XTenantEnvironment XR manifest in the Crossplane
   # live repo on a new branch and opens a pull request. The workflow ends at the
   # pull request — no crossplane/kubectl apply or cluster/cloud side effects.
   steps:
     - id: provision
-      name: Provision tenant TenantEnvironment manifest
+      name: Provision tenant XTenantEnvironment manifest
       action: tenant:provision-crossplane
       input:
         tenantName: ${{ parameters.tenantName }}
         environment: ${{ parameters.environment }}
-        selectedComponents: ${{ parameters.components }}
+        location: ${{ parameters.location }}
+        storageAccountSkuName: ${{ parameters.storageAccountSkuName }}
+        # DISABLED — retained for re-enable (uncomment with the components param):
+        # selectedComponents: ${{ parameters.components }}
 
   # Render the branch name and pull request URL on the results screen.
   output:
@@ -80,6 +111,7 @@ spec:
         content: |
           - **Tenant name:** ${{ parameters.tenantName }}
           - **Environment:** ${{ parameters.environment }}
-          - **Components:** ${{ parameters.components }}
+          - **Location:** ${{ parameters.location }}
+          - **Storage account SKU:** ${{ parameters.storageAccountSkuName }}
           - **Branch:** ${{ steps.provision.output.branchName }}
           - **Pull request:** ${{ steps.provision.output.pullRequestUrl }}

@@ -9,12 +9,18 @@ registered alongside the existing modules in `packages/backend/src/index.ts`.
 
 Workflow (ends at the pull request):
 
-1. Validate inputs; expand selected components against the config-driven allowed set.
+1. Validate inputs; resolve Location / Storage_Account_Sku_Name against config defaults.
 2. Clone the Crossplane live repo at the base branch into a per-execution temp working directory.
-3. Render/write a `TenantEnvironment` manifest at `examples/tenantenvironments/<tenant>-<env>.yaml`.
+3. Render/write an `XTenantEnvironment` XR manifest at `tenants/<tenant>/<env>/xr.yaml`.
 4. Create a timestamped feature branch; commit only that file; push.
 5. Open (or reuse) a pull request.
 6. Clean up the working directory.
+
+> **Components disabled (retained for re-enable).** An earlier iteration expanded Selected_Components
+> against Allowed_Components and rendered `spec.<component>.enabled` blocks. That path is retained in
+> `components.ts`, config, and tests but **not emitted**: the renderer's emit loop is commented, the
+> Template's `components` parameter/step input is commented, and the manifest carries no component
+> blocks. Re-enable by uncommenting those marked seams.
 
 **Hard boundary:** the action never runs `crossplane`, `kubectl apply`, or any cluster/cloud
 execution — in production, tests, or CI (Req 5.5, `AGENTS.md`).
@@ -31,7 +37,7 @@ Each unit has a single responsibility and is independently testable.
 | --- | --- |
 | `actions/tenantProvisionCrossplane.ts` | Action factory + orchestration handler |
 | `config.ts` | Read/validate the `crossplaneProvisioning` config block |
-| `manifest.ts` | Pure renderer → `TenantEnvironment` YAML |
+| `manifest.ts` | Pure renderer → `XTenantEnvironment` XR YAML |
 | `git.ts` | Clone/branch/commit/push (`isomorphic-git`), PR create/lookup (Octokit), `resolveLiveRepoToken`, error classification |
 | `workspace.ts` | Per-execution temp dir: `mkdtemp` uniqueness, `resolveWithin` confinement, verified `cleanup` |
 | `naming.ts` | `buildBranchName` (`devops/<tenant>-<env>-<yyyymmdd-hhmmss>`, UTC), `buildPullRequestTitle` |
@@ -49,13 +55,13 @@ Each unit has a single responsibility and is independently testable.
   coexist, so the only backend-index change is one `backend.add(import('...'))` line. (Sources:
   Backstage docs — Writing Custom Actions; Migrating to the New Backend System. Rephrased for
   licensing compliance.)
-- **Target API.** `TenantEnvironment` is a Crossplane v2 namespaced composite resource:
-  `apiVersion: platform.hello-crossplane.io/v1alpha1`, `kind: TenantEnvironment`. Spec: `tenant`
-  (required), `environment` (required, `dev|staging|prod`), optional `region`, `bucket.versioning`,
-  `table.enabled`, `repository.enabled`. Examples live at `examples/tenantenvironments/<name>.yaml`
-  with `metadata.name` and `metadata.namespace` both `<tenant>-<env>`. This iteration renders that
-  shape; `region`, `bucket.versioning`, `table.hashKey`/`billingMode` use XRD defaults and are not on
-  the form.
+- **Target API.** `XTenantEnvironment` is a Crossplane composite resource (XR):
+  `apiVersion: adp.example.org/v1alpha1`, `kind: XTenantEnvironment`, cluster-scoped. Spec:
+  `compositionRef.name` (selects the Azure composition, config-pinned), `tenantName` (required),
+  `environment` (required, `dev|staging|prod`), `location` (Azure region), `storageAccountSkuName`
+  (Azure Storage SKU). Manifests live at `tenants/<tenant>/<env>/xr.yaml` with `metadata.name`
+  `<tenant>-<env>` and no `metadata.namespace`. The component `spec.<component>.enabled` blocks from
+  the earlier AWS-flavored `TenantEnvironment` are retained in code but disabled (not emitted).
 - **Config vs env.** Values are `${ENV_VAR}` references in `app-config*.yaml`, read via
   `coreServices.rootConfig` (Req 1.9).
 - **GitHub auth.** `resolveLiveRepoToken` resolves the token for the live-repo host through
@@ -67,9 +73,12 @@ Each unit has a single responsibility and is independently testable.
 - **YAML rendering.** A pure builder produces a plain object with fixed key order and component keys
   sorted in ascending byte order; `yaml.stringify` serializes it, giving byte-for-byte identical
   output per input (Req 3.9, 9.4). (Source: `yaml` package docs. Rephrased for licensing compliance.)
-- **Form.** A JSON-schema `array` of `enum` items with `ui:widget: checkboxes` renders as a checkbox
-  list; the selection arrives as `string[]`. The authoritative set is config; the template mirrors it
-  in its `enum` (`table`, `repository`).
+- **Form.** The Template collects `tenantName` (string, pattern-validated), `environment` (enum
+  `dev|staging|prod`), and two Azure dropdowns: `location` (enum of a small region set, default
+  `japaneast`) and `storageAccountSkuName` (enum of Azure Storage SKUs, default `Standard_LRS`). The
+  previous `components` selector (a JSON-schema `array` of `enum` items with `ui:widget: checkboxes`)
+  is retained but **commented out** while components are disabled; re-enabling it restores the
+  checkbox list whose selection arrives as `string[]`.
 
 ## Architecture
 
@@ -100,18 +109,17 @@ packages/backend/src/index.ts
 
 ```mermaid
 flowchart TD
-    A[Action invoked with ctx.input] --> B{Validate inputs\ntenantName, environment,\nselectedComponents}
+    A[Action invoked with ctx.input] --> B{Validate inputs\ntenantName, environment,\nlocation?, storageAccountSkuName?}
     B -- invalid --> BX[Fail: validation error\nNo workdir, no clone]
-    B -- valid --> C{Read + validate config\nURL required, branch=main default,\napiVersion/kind defaults,\nallowedComponents}
+    B -- valid --> C{Read + validate config\nURL required, branch=main default,\napiVersion/kind/composition/\nlocation/sku defaults}
     C -- URL missing/empty\nor invalid allowed name --> CX[Fail: missing/invalid config\nNo workdir, no clone]
-    C -- ok --> CE{Expand selectedComponents\nagainst allowedComponents}
-    CE -- selected not in allowed --> CEX[Fail: unknown component\nNo workdir, no clone]
-    CE -- ok --> D[Create unique Working_Directory]
+    C -- ok --> CE[Resolve location/sku\nfrom input or config default]
+    CE --> D[Create unique Working_Directory]
     D --> E[Clone live repo at base branch\ntimeout 120s]
     E -- network/ref/auth/timeout error --> Z[Cleanup path]
-    E -- ok --> F[Compute target path\nexamples/tenantenvironments/<tenant>-<env>.yaml\nconfine to workdir]
+    E -- ok --> F[Compute target path\ntenants/<tenant>/<env>/xr.yaml\nconfine to workdir]
     F -- path escapes workdir --> Z
-    F -- ok --> G[Render TenantEnvironment YAML\ncreate folders, write/overwrite]
+    F -- ok --> G[Render XTenantEnvironment XR YAML\ncreate folders, write/overwrite]
     G -- write error --> Z
     G -- ok --> H{Feature branch exists?\nlocal or remote}
     H -- exists --> Z
@@ -131,8 +139,9 @@ flowchart TD
 ```
 
 Cleanup runs from a `try/finally` wrapping everything after the working directory is created (Req 6.1,
-6.2). Validation, config, and expansion all run before the working directory exists, so those
-failures never create one (Req 8.1, 8.4, 9.6, 9.7).
+6.2). Validation and config resolution run before the working directory exists, so those failures
+never create one (Req 8.1, 8.4). Component expansion (`expandComponents`) is retained but disabled;
+while disabled it does not contribute to the rendered manifest.
 
 ## Components and Interfaces
 
@@ -146,7 +155,9 @@ export type Environment = 'dev' | 'staging' | 'prod';
 export interface TenantProvisionCrossplaneInput {
   tenantName: string;
   environment: Environment;
-  selectedComponents?: string[]; // subset of allowed; default []
+  location?: string;              // Azure region; defaults to config.defaultLocation
+  storageAccountSkuName?: string; // Azure Storage SKU; defaults to config.defaultStorageAccountSkuName
+  selectedComponents?: string[];  // DISABLED — retained; not emitted while components are off
 }
 
 export interface TenantProvisionCrossplaneOutput {
@@ -161,11 +172,15 @@ export function createTenantProvisionCrossplaneAction(options: {
 ```
 
 - Action id: `tenant:provision-crossplane`.
-- Zod input: `tenantName` matches `^[A-Za-z0-9-]{1,32}$`; `environment` ∈ `dev|staging|prod`;
-  `selectedComponents` optional `string[]`.
+- Zod input: `tenantName` matches `^[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]$`; `environment` ∈
+  `dev|staging|prod`; `location` optional enum of the supported region set; `storageAccountSkuName`
+  optional enum of the supported Azure Storage SKUs; `selectedComponents` optional `string[]`
+  (retained, disabled).
 - Outputs: `pullRequestUrl`, `branchName`.
-- Handler order: validate → config → expand → workspace → clone → render/write → branch/commit/push →
-  PR → cleanup (`finally`). All surfaced errors pass through `redact`.
+- Handler order: validate → config → resolve location/sku (input ?? config default) → workspace →
+  clone → render/write → branch/commit/push → PR → cleanup (`finally`). `expandComponents` is still
+  called for wiring but its result is not emitted while components are disabled. All surfaced errors
+  pass through `redact`.
 
 ### 2. ConfigReader — `readCrossplaneProvisioningConfig`
 
@@ -173,11 +188,14 @@ export function createTenantProvisionCrossplaneAction(options: {
 
 ```ts
 export interface CrossplaneProvisioningConfig {
-  liveRepoUrl: string;         // ${CROSSPLANE_LIVE_REPO_URL}; required, non-empty
-  liveRepoBranch: string;      // ${CROSSPLANE_LIVE_REPO_BRANCH}; default 'main'
-  apiVersion: string;          // default 'platform.hello-crossplane.io/v1alpha1'
-  kind: string;                // default 'TenantEnvironment'
-  allowedComponents: string[]; // crossplaneProvisioning.components; default ['table','repository']
+  liveRepoUrl: string;                  // ${CROSSPLANE_LIVE_REPO_URL}; required, non-empty
+  liveRepoBranch: string;               // ${CROSSPLANE_LIVE_REPO_BRANCH}; default 'main'
+  apiVersion: string;                   // default 'adp.example.org/v1alpha1'
+  kind: string;                         // default 'XTenantEnvironment'
+  compositionName: string;              // default 'xtenantenvironments.azure.adp.example.org'
+  defaultLocation: string;              // default 'japaneast'
+  defaultStorageAccountSkuName: string; // default 'Standard_LRS'
+  allowedComponents: string[];          // crossplaneProvisioning.components; default ['table','repository'] (disabled)
 }
 
 export function readCrossplaneProvisioningConfig(config: RootConfigService): CrossplaneProvisioningConfig;
@@ -186,8 +204,9 @@ export function readCrossplaneProvisioningConfig(config: RootConfigService): Cro
 | Rule | Requirement |
 | --- | --- |
 | `liveRepoBranch` defaults to `main` | 1.7 |
-| `apiVersion`/`kind` default to values above | 1.11 |
-| `components` defaults to `['table','repository']` | 1.10 |
+| `apiVersion`/`kind` default to `adp.example.org/v1alpha1` / `XTenantEnvironment` | 1.11 |
+| `compositionName`/`defaultLocation`/`defaultStorageAccountSkuName` default as above | 1.10 |
+| `components` defaults to `['table','repository']` (disabled) | 1.12 |
 | Fail (key-naming error) when `liveRepoUrl` absent/empty | 1.8 |
 | Reject allowed name not matching `^[a-z0-9_]+$` | 9.7 |
 | Reject allowed set > 100 entries | 9.8 |
@@ -202,7 +221,10 @@ export interface RenderManifestInput {
   environment: Environment;
   apiVersion: string;
   kind: string;
-  components: Record<string, boolean>; // e.g. { repository: false, table: true }
+  compositionName: string;
+  location: string;
+  storageAccountSkuName: string;
+  components: Record<string, boolean>; // DISABLED — accepted but not emitted while components are off
 }
 
 export function renderTenantEnvironmentManifest(input: RenderManifestInput): string;
@@ -211,28 +233,31 @@ export function renderTenantEnvironmentManifest(input: RenderManifestInput): str
 Pure function. Builds an object, serializes with `yaml.stringify`:
 
 ```yaml
-apiVersion: platform.hello-crossplane.io/v1alpha1
-kind: TenantEnvironment
+apiVersion: adp.example.org/v1alpha1
+kind: XTenantEnvironment
 metadata:
   name: acme-dev
-  namespace: acme-dev
 spec:
-  tenant: acme
+  compositionRef:
+    name: xtenantenvironments.azure.adp.example.org
+  tenantName: acme
   environment: dev
-  repository:
-    enabled: false
-  table:
-    enabled: true
+  location: japaneast
+  storageAccountSkuName: Standard_LRS
 ```
 
 Rules:
-- `metadata.name` = `metadata.namespace` = `<tenantName>-<environment>`.
-- `spec.tenant` = `tenantName`; `spec.environment` = `environment`.
-- One `spec.<component>.enabled` per entry, keys sorted ascending byte order, same logic for every
-  key; missing → `false`; empty map → no component blocks (Req 3.3, 9.2–9.4, 9.8, 9.9).
-- Defense-in-depth before output: reject component key not matching `^[a-z0-9_]+$`, map > 100
-  entries, and any `apiVersion`/`kind`/`tenantName` that would break the YAML scalar. Output is
-  deterministic (Req 3.9).
+- `metadata.name` = `<tenantName>-<environment>`; no `metadata.namespace` (cluster-scoped XR).
+- `spec.compositionRef.name` = `compositionName`; `spec.tenantName` = `tenantName`;
+  `spec.environment` = `environment`; `spec.location` = `location`;
+  `spec.storageAccountSkuName` = `storageAccountSkuName`.
+- *(DISABLED — retained for re-enable)* The `spec.<component>.enabled` emit loop (one entry per
+  component, keys sorted ascending byte order, missing → `false`) is **commented out**; the renderer
+  emits no component blocks. Uncommenting the loop restores Req 3.3 / 9.2–9.4 behavior.
+- Defense-in-depth before output: reject any `apiVersion`/`kind`/`tenantName`/`compositionName`/
+  `location`/`storageAccountSkuName` that would break the YAML scalar (contains a newline). The
+  component key `^[a-z0-9_]+$` / >100-entry checks are retained alongside the commented emit loop.
+  Output is deterministic (Req 3.9).
 
 ### 4. GitHelper / WorkspaceManager / redact / naming / components
 
@@ -245,6 +270,7 @@ Rules:
 - `naming.buildBranchName`: `devops/<tenant>-<env>-<yyyymmdd-hhmmss>` UTC (Req 4.2).
 - `redact`: strips secret values from any surfaced string (Req 7.3).
 - `expandComponents`: maps the selected subset onto the full allowed set as booleans (Req 9.1).
+  *(DISABLED — retained; still called for wiring, but its result is not emitted into the manifest.)*
 
 ### 5. Backend module — `platformModuleTenantProvisioningCrossplane`
 
@@ -258,9 +284,11 @@ New `scaffolder.backstage.io/v1beta3` Template.
 
 | Parameter | Type | Notes |
 | --- | --- | --- |
-| `tenantName` | string | pattern `^[A-Za-z0-9-]{1,32}$` |
+| `tenantName` | string | pattern `^[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]$` |
 | `environment` | string | enum `dev|staging|prod`, default `dev` |
-| `components` | array/enum | `[table, repository]`, `ui:widget: checkboxes`, default `[]` |
+| `location` | string | enum `[japaneast, japanwest, southeastasia]`, default `japaneast` |
+| `storageAccountSkuName` | string | enum `[Standard_LRS, Standard_GRS, Standard_RAGRS, Standard_ZRS, Premium_LRS]`, default `Standard_LRS` |
+| `components` *(DISABLED)* | array/enum | `[table, repository]`, `ui:widget: checkboxes` — **commented out**, retained for re-enable |
 
 One step invokes `tenant:provision-crossplane`; output links to the PR URL and shows the branch name.
 Registered under `catalog.locations` in `app-config.yaml`.
@@ -269,11 +297,14 @@ Registered under `catalog.locations` in `app-config.yaml`.
 
 ```yaml
 crossplaneProvisioning:
-  liveRepoUrl: ${CROSSPLANE_LIVE_REPO_URL}          # required
-  liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH}    # optional; defaults to main
-  apiVersion: platform.hello-crossplane.io/v1alpha1 # optional; default shown
-  kind: TenantEnvironment                           # optional; default shown
-  components: [table, repository]                   # Allowed_Components
+  liveRepoUrl: ${CROSSPLANE_LIVE_REPO_URL}                       # required
+  liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH}                 # optional; defaults to main
+  apiVersion: adp.example.org/v1alpha1                          # optional; default shown
+  kind: XTenantEnvironment                                       # optional; default shown
+  compositionName: xtenantenvironments.azure.adp.example.org     # optional; default shown
+  defaultLocation: japaneast                                     # optional; default shown
+  defaultStorageAccountSkuName: Standard_LRS                     # optional; default shown
+  components: [table, repository]                                # Allowed_Components (DISABLED; retained)
 ```
 
 `.env` gains `CROSSPLANE_LIVE_REPO_URL` (and optionally `CROSSPLANE_LIVE_REPO_BRANCH`). `GITHUB_TOKEN`
@@ -295,16 +326,20 @@ is used via `integrations.github`. No AWS/Azure credentials required (PR-only).
 
 - **Property-based** (`fast-check`, ≥100 iterations, tagged
   `Feature: tenant-provision-crossplane, Property N: <text>`):
-  - Manifest round-trip: parse rendered YAML; assert `apiVersion`/`kind`/`metadata.name`/`namespace`/
-    `spec.tenant`/`spec.environment` and one `spec.<c>.enabled` per allowed (true iff selected);
-    assert determinism (Req 3, 9).
-  - Component expansion total over allowed; rejects unknown (Req 9.1, 9.5, 9.6, 9.8, 9.9).
+  - Manifest round-trip: parse rendered YAML; assert `apiVersion`/`kind`/`metadata.name`,
+    absence of `metadata.namespace`, `spec.compositionRef.name`/`spec.tenantName`/
+    `spec.environment`/`spec.location`/`spec.storageAccountSkuName`, and that no
+    `spec.<component>.enabled` block is emitted; assert determinism (Req 3).
+  - *(DISABLED — retained/skipped)* Component expansion total over allowed; rejects unknown
+    (Req 9.1, 9.5, 9.6, 9.8, 9.9). The `expandComponents` unit tests stay green; the manifest
+    component-emit property is skipped while components are disabled.
   - Path confinement rejects escaping paths (Req 3.7, 7.4, 7.5).
   - Redaction: token never survives (Req 7.3).
-- **Mock-based unit/integration:** config defaults + missing-`liveRepoUrl` (Req 1.7, 1.8, 1.11);
-  orchestration happy path with git mocked (outputs set, only the manifest committed); clone/push/PR
-  error mapping + timeouts; PR idempotency reuse (Req 5.6); cleanup on success and failure
-  (Req 6.1–6.3); module registration exposes the action (Req 1.1, 1.2).
+- **Mock-based unit/integration:** config defaults incl. compositionName/defaultLocation/
+  defaultStorageAccountSkuName + missing-`liveRepoUrl` (Req 1.7, 1.8, 1.10, 1.11); orchestration
+  happy path with git mocked (outputs set, only the manifest committed at `tenants/<t>/<e>/xr.yaml`);
+  clone/push/PR error mapping + timeouts; PR idempotency reuse (Req 5.6); cleanup on success and
+  failure (Req 6.1–6.3); module registration exposes the action (Req 1.1, 1.2).
 - **Safety:** no code path invokes a cluster/apply command; manifest and logs never contain the token
   (Req 5.5, 7.1, 7.2).
 

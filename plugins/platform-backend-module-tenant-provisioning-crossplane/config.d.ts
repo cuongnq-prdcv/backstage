@@ -5,8 +5,8 @@ export interface Config {
   crossplaneProvisioning?: {
     /**
      * URL of the Crossplane "live" Git repository that holds tenant
-     * `TenantEnvironment` manifests (layout
-     * `examples/tenantenvironments/<tenant>-<environment>.yaml`). Sourced from
+     * `XTenantEnvironment` XR manifests (layout
+     * `tenants/<tenant-name>/<environment>/xr.yaml`). Sourced from
      * `${CROSSPLANE_LIVE_REPO_URL}`.
      */
     liveRepoUrl?: string;
@@ -20,20 +20,39 @@ export interface Config {
 
     /**
      * `apiVersion` written into the rendered manifest. Defaults to
-     * `platform.hello-crossplane.io/v1alpha1` when omitted.
+     * `adp.example.org/v1alpha1` when omitted.
      */
     apiVersion?: string;
 
     /**
      * `kind` written into the rendered manifest. Defaults to
-     * `TenantEnvironment` when omitted.
+     * `XTenantEnvironment` when omitted.
      */
     kind?: string;
 
     /**
+     * `spec.compositionRef.name` written into the rendered XR. Defaults to
+     * `xtenantenvironments.azure.adp.example.org` when omitted.
+     */
+    compositionName?: string;
+
+    /**
+     * Fallback `spec.location` (Azure region) used when the action input omits
+     * it. Defaults to `japaneast` when omitted.
+     */
+    defaultLocation?: string;
+
+    /**
+     * Fallback `spec.storageAccountSkuName` (Azure Storage SKU) used when the
+     * action input omits it. Defaults to `Standard_LRS` when omitted.
+     */
+    defaultStorageAccountSkuName?: string;
+
+    /**
      * The authoritative set of allowed component names (Allowed_Components).
      * Each name must match `^[a-z0-9_]+$`. Defaults to `['table', 'repository']`
-     * when omitted.
+     * when omitted. DISABLED — retained for re-enable; read but not rendered
+     * into the manifest while component emission is off.
      */
     components?: string[];
   };

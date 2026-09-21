@@ -288,3 +288,63 @@ modified.
   ]
 }
 ```
+
+
+---
+
+## Update: XR format v2 (XTenantEnvironment + new path + components disabled)
+
+This update revises the already-implemented action to the new Crossplane XR shape and folder layout,
+and disables (but retains) the components capability. Scope: the existing module + template + config
++ tests + the `app-config.yaml`/`.env.example` docs. No new files; no git/network/crossplane
+execution is added. See the revised `requirements.md` (Req 1, 3, 9-DISABLED) and `design.md`
+(sections 1, 2, 3, 6, 7).
+
+- [x] U1. ConfigReader: new defaults + fields
+  - Change `apiVersion` default to `adp.example.org/v1alpha1` and `kind` default to
+    `XTenantEnvironment`.
+  - Add `compositionName` (default `xtenantenvironments.azure.adp.example.org`), `defaultLocation`
+    (default `japaneast`), `defaultStorageAccountSkuName` (default `Standard_LRS`) to
+    `CrossplaneProvisioningConfig` and the reader.
+  - Keep `allowedComponents` read as-is (disabled, retained).
+  - Update `config.d.ts`, `app-config.yaml`, and `.env.example` to match.
+  - _Requirements: 1.10, 1.11, 1.12_
+
+- [x] U2. ManifestRenderer: new XR shape, components emit commented
+  - Extend `RenderManifestInput` with `compositionName`, `location`, `storageAccountSkuName`.
+  - Emit `apiVersion`/`kind`/`metadata.name` (no `namespace`), and
+    `spec.compositionRef.name`/`spec.tenantName`/`spec.environment`/`spec.location`/
+    `spec.storageAccountSkuName`.
+  - Comment out the `spec.<component>.enabled` emit loop (retain code + validation for re-enable).
+  - Add newline defense-in-depth for the new scalar fields.
+  - _Requirements: 3.1, 3.2, 3.3-DISABLED, 3.9_
+
+- [x] U3. Action handler: new inputs + new target path
+  - Add optional `location` / `storageAccountSkuName` inputs (zod enum of the supported Azure sets),
+    resolving to config defaults when absent.
+  - Change the target path to `tenants/<tenantName>/<environment>/xr.yaml` (still via
+    `resolveWithin`).
+  - Pass `compositionName`/`location`/`storageAccountSkuName` to the renderer; keep the
+    `expandComponents` call (result not emitted).
+  - _Requirements: 1.3, 1.5, 3.2, 3.4_
+
+- [x] U4. Template: dropdowns + components commented
+  - Comment out the `components` parameter and its step input.
+  - Add `location` and `storageAccountSkuName` dropdowns (enums with defaults).
+  - Update the step input and the output text (drop Components; add Location + SKU).
+  - _Requirements: 1.3, 1.5_
+
+- [x] U5. Tests: align to new shape/path
+  - `manifest.property.test.ts`: assert new shape (no namespace, tenantName/compositionRef/location/
+    sku, no component blocks); skip the component-emit property while disabled.
+  - `git.test.ts`: expected committed path `tenants/acme/dev/xr.yaml`.
+  - `config.test.ts`: assert new defaults (compositionName/defaultLocation/defaultStorageAccountSkuName)
+    and the updated apiVersion/kind.
+  - `tenantProvisionCrossplane.test.ts`: expected target path + new inputs; assert `kind:
+    XTenantEnvironment` and no component blocks.
+  - `expandComponents` unit test stays green (capability retained).
+  - _Requirements: 3, 1.10, 1.11_
+
+- [x] U6. Verify
+  - `yarn workspace @internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane test`
+    and `yarn tsc` are green. No real git/network/crossplane runs.
