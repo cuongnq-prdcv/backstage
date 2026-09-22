@@ -504,3 +504,53 @@ Terragrunt plugin is not modified. No task runs `crossplane`/`kubectl` or any re
   ]
 }
 ```
+
+---
+
+## Update: drop `spec.compositionRef` from the rendered XR
+
+The XR no longer pins a composition: composition selection is left to Crossplane's own
+default-composition resolution for the XRD. `crossplaneProvisioning.compositionName` existed solely to
+feed `spec.compositionRef.name`, so it is removed along with the field rather than left as config that
+is read and never used. Target shape:
+
+```yaml
+apiVersion: adp.example.org/v1alpha1
+kind: XTenantEnvironment
+metadata:
+  name: tenant-a-dev
+spec:
+  tenantName: tenant-a
+  environment: dev
+  location: japaneast
+  storageAccountSkuName: Standard_LRS
+```
+
+See the revised `requirements.md` (Introduction shape, glossary — `Composition_Name` removed, Req 1.10,
+Req 3.2) and `design.md` (research notes, flow, sections 2, 3, 8).
+
+- [x] C1. Remove `compositionRef` from the renderer
+  - Drop `compositionName` from `RenderManifestInput`, from the newline defense-in-depth list, and
+    from the emitted `spec` map. The remaining `spec` keys are `tenantName`, `environment`,
+    `location`, `storageAccountSkuName`.
+  - _Requirements: 3.1, 3.2, 3.9_
+
+- [x] C2. Remove `compositionName` from config, schema, and app-config
+  - Drop the field, its default constant, and its read from `readCrossplaneProvisioningConfig`;
+    remove it from `config.d.ts` and from the `crossplaneProvisioning` block in `app-config.yaml`.
+  - Stop passing it from the action to the renderer.
+  - _Requirements: 1.10_
+
+- [x] C3. Update the tests
+  - `manifest.property.test.ts`: drop the `compositionName` generator/literals; assert
+    `spec.compositionRef` is undefined and that `spec` has exactly the four remaining keys.
+  - `config.test.ts`: drop the `compositionName` default/override assertions and the field from the
+    fully-valid-config expectation.
+  - `renderCrossplaneManifest.test.ts`: assert `spec.compositionRef` is undefined and the four-key
+    `spec`.
+  - _Requirements: 1.10, 3.2_
+
+- [x] C4. Verify
+  - Workspace `test`, `yarn tsc`, workspace `lint`, and `config:check` are green; no `composition`
+    reference remains in module source, `config.d.ts`, or `app-config.yaml`.
+  - _Requirements: 1.10, 3.2_

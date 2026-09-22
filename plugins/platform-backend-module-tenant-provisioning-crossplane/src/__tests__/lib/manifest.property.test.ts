@@ -75,7 +75,6 @@ const validInput = fc.record({
   environment,
   apiVersion: fc.constant('adp.example.org/v1alpha1'),
   kind: fc.constant('XTenantEnvironment'),
-  compositionName: fc.constant('xtenantenvironments.azure.adp.example.org'),
   location,
   storageAccountSkuName,
   components: componentsRecord,
@@ -98,9 +97,7 @@ describe('renderTenantEnvironmentManifest', () => {
         // XR is cluster-scoped: no namespace is emitted.
         expect(parsed.metadata.namespace).toBeUndefined();
 
-        expect(parsed.spec.compositionRef).toEqual({
-          name: input.compositionName,
-        });
+        expect(parsed.spec.compositionRef).toBeUndefined();
         expect(parsed.spec.tenantName).toBe(input.tenantName);
         expect(parsed.spec.environment).toBe(input.environment);
         expect(parsed.spec.location).toBe(input.location);
@@ -108,16 +105,10 @@ describe('renderTenantEnvironmentManifest', () => {
           input.storageAccountSkuName,
         );
 
-        // Components are disabled: spec has exactly these five keys and no
+        // Components are disabled: spec has exactly these four keys and no
         // component blocks, regardless of the components map contents.
         expect(Object.keys(parsed.spec).sort()).toEqual(
-          [
-            'compositionRef',
-            'environment',
-            'location',
-            'storageAccountSkuName',
-            'tenantName',
-          ].sort(),
+          ['environment', 'location', 'storageAccountSkuName', 'tenantName'].sort(),
         );
       }),
       { numRuns: 200 },
@@ -144,7 +135,6 @@ describe('renderTenantEnvironmentManifest', () => {
         environment: e,
         apiVersion: 'adp.example.org/v1alpha1',
         kind: 'XTenantEnvironment',
-        compositionName: 'xtenantenvironments.azure.adp.example.org',
         location: loc,
         storageAccountSkuName: sku,
         components: { 'Bad-Key': true } as Record<string, boolean>,
@@ -171,7 +161,6 @@ describe('renderTenantEnvironmentManifest', () => {
         environment: 'dev',
         apiVersion: 'adp.example.org/v1alpha1',
         kind: 'XTenantEnvironment',
-        compositionName: 'xtenantenvironments.azure.adp.example.org',
         location: 'japaneast',
         storageAccountSkuName: 'Standard_LRS',
         components: oversized,
@@ -185,20 +174,13 @@ describe('renderTenantEnvironmentManifest', () => {
       environment: 'dev',
       apiVersion: 'adp.example.org/v1alpha1',
       kind: 'XTenantEnvironment',
-      compositionName: 'xtenantenvironments.azure.adp.example.org',
       location: 'japaneast',
       storageAccountSkuName: 'Standard_LRS',
       components: { table: true, repository: false },
     });
     const parsed = parse(yaml);
     expect(Object.keys(parsed.spec).sort()).toEqual(
-      [
-        'compositionRef',
-        'environment',
-        'location',
-        'storageAccountSkuName',
-        'tenantName',
-      ].sort(),
+      ['environment', 'location', 'storageAccountSkuName', 'tenantName'].sort(),
     );
     expect(parsed.spec.table).toBeUndefined();
     expect(parsed.spec.repository).toBeUndefined();

@@ -201,7 +201,6 @@ crossplaneProvisioning:
   liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH} # optional; defaults to main
   apiVersion: adp.example.org/v1alpha1 # optional; default shown
   kind: XTenantEnvironment # optional; default shown
-  compositionName: xtenantenvironments.azure.adp.example.org # optional; default shown
   defaultLocation: japaneast # optional; default shown (fallback spec.location)
   defaultStorageAccountSkuName: Standard_LRS # optional; default shown (fallback spec.storageAccountSkuName)
   components: [table, repository] # Allowed_Components; DISABLED (retained for re-enable), not emitted

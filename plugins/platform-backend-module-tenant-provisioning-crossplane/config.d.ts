@@ -32,12 +32,6 @@ export interface Config {
     kind?: string;
 
     /**
-     * `spec.compositionRef.name` written into the rendered XR. Defaults to
-     * `xtenantenvironments.azure.adp.example.org` when omitted.
-     */
-    compositionName?: string;
-
-    /**
      * Fallback `spec.location` (Azure region) used when the action input omits
      * it. Defaults to `japaneast` when omitted.
      */

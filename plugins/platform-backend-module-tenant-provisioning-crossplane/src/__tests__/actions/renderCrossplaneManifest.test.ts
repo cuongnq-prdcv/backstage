@@ -134,16 +134,13 @@ describe('tenant:render-crossplane-manifest', () => {
     expect(manifest.kind).toBe('XTenantEnvironment');
     expect(manifest.metadata.name).toBe('acme-dev');
     expect(manifest.metadata.namespace).toBeUndefined();
-    expect(manifest.spec.compositionRef).toEqual({
-      name: 'xtenantenvironments.azure.adp.example.org',
-    });
+    expect(manifest.spec.compositionRef).toBeUndefined();
     expect(manifest.spec.tenantName).toBe('acme');
     expect(manifest.spec.environment).toBe('dev');
     expect(manifest.spec.location).toBe('japanwest');
     expect(manifest.spec.storageAccountSkuName).toBe('Premium_LRS');
     // Components are disabled: no component blocks.
     expect(Object.keys(manifest.spec).sort()).toEqual([
-      'compositionRef',
       'environment',
       'location',
       'storageAccountSkuName',

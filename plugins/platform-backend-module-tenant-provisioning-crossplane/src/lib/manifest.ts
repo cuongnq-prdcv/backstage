@@ -9,8 +9,6 @@ export interface RenderManifestInput {
   environment: Environment;
   apiVersion: string;
   kind: string;
-  /** `spec.compositionRef.name` (selects the Azure composition). */
-  compositionName: string;
   /** `spec.location` (Azure region), e.g. `japaneast`. */
   location: string;
   /** `spec.storageAccountSkuName` (Azure Storage SKU), e.g. `Standard_LRS`. */
@@ -59,15 +57,15 @@ function byteOrder(a: string, b: string): number {
  * metadata:
  *   name: <tenant>-<environment>
  * spec:
- *   compositionRef:
- *     name: <compositionName>
  *   tenantName: <tenant>
  *   environment: <environment>
  *   location: <location>
  *   storageAccountSkuName: <storageAccountSkuName>
  * ```
  *
- * The XR is cluster-scoped, so no `metadata.namespace` is emitted.
+ * The XR is cluster-scoped, so no `metadata.namespace` is emitted. No
+ * `spec.compositionRef` is emitted either: composition selection is left to
+ * Crossplane's own default-composition resolution for the XRD.
  *
  * Components are DISABLED (retained for re-enable): the `spec.<component>.enabled`
  * emit loop is commented out, so no component blocks appear in the output. The
@@ -75,8 +73,8 @@ function byteOrder(a: string, b: string): number {
  *
  * Defense-in-depth validation runs before any output is produced.
  *
- * @throws If `apiVersion`, `kind`, `tenantName`, `compositionName`, `location`,
- *   or `storageAccountSkuName` contains a newline (which would break the YAML
+ * @throws If `apiVersion`, `kind`, `tenantName`, `location`, or
+ *   `storageAccountSkuName` contains a newline (which would break the YAML
  *   scalar).
  * @throws If any component key does not match `^[a-z0-9_]+$` (retained check).
  * @throws If the `components` map has more than 100 entries (retained check).
@@ -89,7 +87,6 @@ export function renderTenantEnvironmentManifest(
     environment,
     apiVersion,
     kind,
-    compositionName,
     location,
     storageAccountSkuName,
     components,
@@ -100,7 +97,6 @@ export function renderTenantEnvironmentManifest(
     ['apiVersion', apiVersion],
     ['kind', kind],
     ['tenantName', tenantName],
-    ['compositionName', compositionName],
     ['location', location],
     ['storageAccountSkuName', storageAccountSkuName],
   ] as const) {
@@ -134,7 +130,6 @@ export function renderTenantEnvironmentManifest(
   // A plain object would reorder integer-like keys ahead of string keys.
   // `yaml.stringify` serializes a Map preserving insertion order.
   const spec = new Map<string, unknown>();
-  spec.set('compositionRef', new Map([['name', compositionName]]));
   spec.set('tenantName', tenantName);
   spec.set('environment', environment);
   spec.set('location', location);

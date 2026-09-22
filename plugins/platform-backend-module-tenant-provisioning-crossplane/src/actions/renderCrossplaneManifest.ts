@@ -257,7 +257,6 @@ export function createRenderCrossplaneManifestAction(
         environment,
         apiVersion: provisioningConfig.apiVersion,
         kind: provisioningConfig.kind,
-        compositionName: provisioningConfig.compositionName,
         location: resolvedLocation,
         storageAccountSkuName: resolvedStorageAccountSkuName,
         // DISABLED — retained: expansion result passed for wiring, not emitted.

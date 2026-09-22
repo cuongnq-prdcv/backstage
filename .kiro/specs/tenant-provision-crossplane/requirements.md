@@ -56,9 +56,10 @@ steps.
 
 The generated manifest targets the `XTenantEnvironment` XR API
 (`apiVersion: adp.example.org/v1alpha1`, `kind: XTenantEnvironment`, cluster-scoped). The manifest
-models the **Azure-flavored** `XTenantEnvironment`: it pins a `spec.compositionRef.name` to select
-the Azure composition, and carries `spec.tenantName`, `spec.environment`, `spec.location` (Azure
-region), and `spec.storageAccountSkuName` (Azure Storage SKU). The rendered shape is:
+models the **Azure-flavored** `XTenantEnvironment`: it carries `spec.tenantName`,
+`spec.environment`, `spec.location` (Azure region), and `spec.storageAccountSkuName` (Azure Storage
+SKU). It carries **no** `spec.compositionRef` — composition selection is left to Crossplane's own
+default-composition resolution for the XRD. The rendered shape is:
 
 ```yaml
 apiVersion: adp.example.org/v1alpha1
@@ -66,8 +67,6 @@ kind: XTenantEnvironment
 metadata:
   name: <tenant>-<environment>
 spec:
-  compositionRef:
-    name: xtenantenvironments.azure.adp.example.org
   tenantName: <tenant>
   environment: <environment>
   location: <location>
@@ -139,9 +138,6 @@ in tests or CI.
 - **Storage_Account_Sku_Name**: The Azure Storage account SKU supplied by the Template parameters,
   written to the manifest `spec.storageAccountSkuName` field (e.g. `Standard_LRS`). Optional on the
   action input; when absent it defaults to the configured `Default_Storage_Account_Sku_Name`.
-- **Composition_Name**: The Crossplane composition selector written to the manifest
-  `spec.compositionRef.name` field, read from the `crossplaneProvisioning.compositionName`
-  app-config value; defaults to `xtenantenvironments.azure.adp.example.org`.
 - **Default_Location**: The fallback Location, read from the
   `crossplaneProvisioning.defaultLocation` app-config value; defaults to `japaneast`.
 - **Default_Storage_Account_Sku_Name**: The fallback Storage_Account_Sku_Name, read from the
@@ -202,7 +198,7 @@ flow keeps working.
 7. WHERE the `CROSSPLANE_LIVE_REPO_BRANCH` configuration value is not supplied, THE Render_Action SHALL default the Live_Repo_Base_Branch to `main`.
 8. IF the `CROSSPLANE_LIVE_REPO_URL` configuration value is absent or empty, THEN THE Render_Action SHALL fail the step with an error identifying the missing configuration, SHALL NOT write any file, and SHALL NOT emit any Pull_Request_Inputs.
 9. THE Render_Action SHALL obtain configuration values from environment-backed app-config references rather than from hardcoded literals.
-10. THE Render_Action SHALL read the Composition_Name, Default_Location, and Default_Storage_Account_Sku_Name from app-config values rather than from hardcoded literals, defaulting Composition_Name to `xtenantenvironments.azure.adp.example.org`, Default_Location to `japaneast`, and Default_Storage_Account_Sku_Name to `Standard_LRS` when absent.
+10. THE Render_Action SHALL read the Default_Location and Default_Storage_Account_Sku_Name from app-config values rather than from hardcoded literals, defaulting Default_Location to `japaneast` and Default_Storage_Account_Sku_Name to `Standard_LRS` when absent.
 11. WHERE the `crossplaneProvisioning.apiVersion` or `crossplaneProvisioning.kind` configuration values are not supplied, THE Render_Action SHALL default Api_Version to `adp.example.org/v1alpha1` and Manifest_Kind to `XTenantEnvironment`.
 12. *(DISABLED — retained for re-enable)* THE Render_Action SHALL read the Allowed_Components from an app-config list rather than from a hardcoded list of component names. While components are disabled, the value is read but not rendered into the manifest.
 
@@ -233,7 +229,7 @@ my tenant and environment are provisioned without hand-writing Crossplane YAML.
 #### Acceptance Criteria
 
 1. THE Render_Action SHALL render a Manifest_File whose `apiVersion` is the Api_Version, whose `kind` is the Manifest_Kind, and whose `metadata.name` is `<Tenant_Name>-<Environment>`. The rendered manifest SHALL NOT include a `metadata.namespace` field (the XR is cluster-scoped).
-2. THE Render_Action SHALL set the manifest `spec.compositionRef.name` to the Composition_Name, `spec.tenantName` to the Tenant_Name, `spec.environment` to the Environment, `spec.location` to the resolved Location, and `spec.storageAccountSkuName` to the resolved Storage_Account_Sku_Name.
+2. THE Render_Action SHALL set the manifest `spec.tenantName` to the Tenant_Name, `spec.environment` to the Environment, `spec.location` to the resolved Location, and `spec.storageAccountSkuName` to the resolved Storage_Account_Sku_Name, and SHALL NOT emit a `spec.compositionRef` field.
 3. *(DISABLED — retained for re-enable)* THE Render_Action SHALL render one `spec.<component>.enabled` entry for each Component_Flag in the Component_Set, setting each entry's boolean value from the corresponding Component_Flag input value, and SHALL do so without hardcoding a fixed list of component names in the rendering logic. While components are disabled, the renderer SHALL NOT emit any `spec.<component>.enabled` entry.
 4. THE Render_Action SHALL write the Manifest_File as `xr.yaml` inside the Source_Directory, and SHALL emit the Target_Directory `tenants/<Tenant_Name>/<Environment>` as a step output, so that the Pull_Request_Action applies the manifest to `tenants/<Tenant_Name>/<Environment>/xr.yaml` in the Crossplane_Live_Repo.
 5. IF the Source_Directory does not exist in the Workspace, THEN THE Render_Action SHALL create it before writing the Manifest_File.

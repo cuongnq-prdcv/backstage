@@ -110,8 +110,9 @@ All facts below were read from the installed packages in this repo, not from mem
   the task finishes (line 547). A module-level temporary directory would duplicate this.
 - **Target API.** `XTenantEnvironment` is a Crossplane composite resource (XR):
   `apiVersion: adp.example.org/v1alpha1`, `kind: XTenantEnvironment`, cluster-scoped. Spec:
-  `compositionRef.name` (selects the Azure composition, config-pinned), `tenantName`, `environment`
-  (`dev|staging|prod`), `location` (Azure region), `storageAccountSkuName` (Azure Storage SKU).
+  `tenantName`, `environment` (`dev|staging|prod`), `location` (Azure region),
+  `storageAccountSkuName` (Azure Storage SKU). No `compositionRef` is written: composition selection
+  is left to Crossplane's default-composition resolution for the XRD.
   Manifests live at `tenants/<tenant>/<env>/xr.yaml` with `metadata.name` `<tenant>-<env>` and no
   `metadata.namespace`.
 - **Config vs env.** Values are `${ENV_VAR}` references in `app-config*.yaml`, read via
@@ -158,7 +159,7 @@ packages/backend/src/index.ts
 flowchart TD
     A[Step 1: tenant:render-crossplane-manifest] --> B{Validate inputs\ntenantName, environment,\nlocation?, storageAccountSkuName?}
     B -- invalid --> BX[Fail step\nNo file written, no outputs]
-    B -- valid --> C{Read + validate config\nliveRepoUrl required, branch=main default,\napiVersion/kind/composition/location/sku defaults}
+    B -- valid --> C{Read + validate config\nliveRepoUrl required, branch=main default,\napiVersion/kind/location/sku defaults}
     C -- missing/invalid --> CX[Fail step\nNo file written, no outputs]
     C -- ok --> D[Resolve location/sku\ninput ?? config default]
     D --> E[Derive repoUrl\nhost?owner=..&repo=..]
@@ -238,7 +239,6 @@ export interface CrossplaneProvisioningConfig {
   liveRepoBranch: string;               // ${CROSSPLANE_LIVE_REPO_BRANCH}; default 'main'
   apiVersion: string;                   // default 'adp.example.org/v1alpha1'
   kind: string;                         // default 'XTenantEnvironment'
-  compositionName: string;              // default 'xtenantenvironments.azure.adp.example.org'
   defaultLocation: string;              // default 'japaneast'
   defaultStorageAccountSkuName: string; // default 'Standard_LRS'
   allowedComponents: string[];          // crossplaneProvisioning.components; default ['table','repository'] (disabled)
@@ -249,7 +249,7 @@ export interface CrossplaneProvisioningConfig {
 | --- | --- |
 | `liveRepoBranch` defaults to `main` | 1.7 |
 | `apiVersion`/`kind` default to `adp.example.org/v1alpha1` / `XTenantEnvironment` | 1.11 |
-| `compositionName`/`defaultLocation`/`defaultStorageAccountSkuName` default as above | 1.10 |
+| `defaultLocation`/`defaultStorageAccountSkuName` default as above | 1.10 |
 | `components` defaults to `['table','repository']` (disabled) | 1.12 |
 | Fail (key-naming error) when `liveRepoUrl` absent/empty | 1.8 |
 | Reject allowed name not matching `^[a-z0-9_]+$` | 9.7 |
@@ -266,8 +266,6 @@ kind: XTenantEnvironment
 metadata:
   name: acme-dev
 spec:
-  compositionRef:
-    name: xtenantenvironments.azure.adp.example.org
   tenantName: acme
   environment: dev
   location: japaneast
@@ -369,7 +367,6 @@ crossplaneProvisioning:
   liveRepoBranch: ${CROSSPLANE_LIVE_REPO_BRANCH}                 # optional; defaults to main
   apiVersion: adp.example.org/v1alpha1                           # optional; default shown
   kind: XTenantEnvironment                                       # optional; default shown
-  compositionName: xtenantenvironments.azure.adp.example.org     # optional; default shown
   defaultLocation: japaneast                                     # optional; default shown
   defaultStorageAccountSkuName: Standard_LRS                     # optional; default shown
   components: [table, repository]                                # Allowed_Components (DISABLED; retained)
