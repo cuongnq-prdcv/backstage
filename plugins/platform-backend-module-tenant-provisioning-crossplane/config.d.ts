@@ -1,6 +1,7 @@
 export interface Config {
   /**
-   * Configuration for the `tenant:provision-crossplane` scaffolder action.
+   * Configuration for the `tenant:render-crossplane-manifest` scaffolder action
+   * and the `publish:github:pull-request` step it feeds.
    */
   crossplaneProvisioning?: {
     /**

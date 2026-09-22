@@ -1,7 +1,7 @@
 import { RootConfigService } from '@backstage/backend-plugin-api';
 
 /**
- * Resolved configuration for the `tenant:provision-crossplane` action, read
+ * Resolved configuration for the `tenant:render-crossplane-manifest` action, read
  * from the `crossplaneProvisioning` app-config block.
  */
 export interface CrossplaneProvisioningConfig {

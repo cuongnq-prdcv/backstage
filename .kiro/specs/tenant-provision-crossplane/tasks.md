@@ -348,3 +348,159 @@ execution is added. See the revised `requirements.md` (Req 1, 3, 9-DISABLED) and
 - [x] U6. Verify
   - `yarn workspace @internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane test`
     and `yarn tsc` are green. No real git/network/crossplane runs.
+
+---
+
+## Update: hybrid design — thin render action + built-in `publish:github:pull-request`
+
+This update refactors the module from one end-to-end action into a two-step Template: the custom
+action keeps only the domain logic (validate → read config → render `xr.yaml` into the task workspace →
+emit wiring outputs), and the built-in `publish:github:pull-request` action does branch + commit +
+pull request. See the revised `requirements.md` (revision banner; Req 1, 2, 4, 5, 6, 7 revised) and
+`design.md` (revision table + sections 1, 4, 5, 6, 7).
+
+Net effect: `lib/git.ts` (509 lines), `lib/workspace.ts` (111), `lib/redact.ts` (31) and their tests
+are deleted; `lib/repoUrl.ts` is added; the action is renamed and reduced to rendering. No git,
+network, or secret handling remains in this module.
+
+Conventions (per AGENTS.md): dependency removal via
+`yarn workspace @internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane remove ...`
+(never by hand-editing `package.json`); verification via root/workspace scripts. The existing
+Terragrunt plugin is not modified. No task runs `crossplane`/`kubectl` or any real network operation.
+
+- [x] H1. Add `lib/repoUrl.ts` — `buildScaffolderRepoUrl`
+  - Implement the pure function parsing `https://<host>/<owner>/<repo>(.git)` and returning
+    `<host>?owner=<owner>&repo=<repo>` (the `repoUrl` form `publish:github:pull-request` accepts).
+  - Throw an error naming `crossplaneProvisioning.liveRepoUrl` when the URL is unparseable or has no
+    owner/repo pair. Carry the parsing over from `git.ts` before that file is deleted.
+  - _Requirements: 1.6, 1.9_
+
+- [x] H2. Revise `lib/naming.ts`
+  - Change `buildBranchName(tenantName, environment)` to return `devops/<tenant>-<environment>` —
+    drop the `Date` parameter and the `-<yyyymmdd-hhmmss>` suffix.
+  - Add `buildCommitMessage(tenantName, environment)` (contains both values) and
+    `buildPullRequestDescription({ tenantName, environment, location, storageAccountSkuName,
+    manifestPath })`; keep `buildPullRequestTitle` as-is. All four stay pure.
+  - _Requirements: 4.1, 4.3, 5.3_
+
+- [x] H3. Rewrite the action as `actions/renderCrossplaneManifest.ts`
+  - Create `createRenderCrossplaneManifestAction` with `id: 'tenant:render-crossplane-manifest'` and
+    `supportsDryRun: true`; delete `actions/tenantProvisionCrossplane.ts`.
+  - Keep the input schema (`tenantName`, `environment`, optional `location` /
+    `storageAccountSkuName`, retained-but-disabled `selectedComponents`).
+  - Declare outputs `repoUrl`, `sourcePath`, `targetPath`, `manifestPath`, `branchName`,
+    `targetBranchName`, `title`, `description`, `commitMessage`.
+  - Handler order: validate → `readCrossplaneProvisioningConfig` → `expandComponents` (retained,
+    result unused) → resolve location/sku from config defaults → `buildScaffolderRepoUrl` →
+    `resolveSafeChildPath(ctx.workspacePath, 'crossplane-pr/xr.yaml')` → render → `mkdir` +
+    `writeFile` (exactly one file) → emit outputs.
+  - Add the `SOURCE_DIRECTORY = 'crossplane-pr'` constant and emit it as `sourcePath`.
+  - Remove all token resolution, git calls, workspace creation, `try/finally` cleanup, and redaction
+    from the handler.
+  - _Requirements: 1.3, 1.4, 1.5, 1.6, 2.3, 3.1, 3.2, 3.4, 3.5, 3.7, 3.8, 3.10, 4.1, 4.3, 5.3, 6.1, 6.3, 7.1, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4_
+
+- [x] H4. Update `src/module.ts` and delete the superseded files
+  - Point `registerInit` at `createRenderCrossplaneManifestAction`; keep `pluginId: 'scaffolder'` and
+    `moduleId: 'tenant-provisioning-crossplane'`. The `backend.add(...)` line in
+    `packages/backend/src/index.ts` needs no change.
+  - Delete `src/lib/git.ts`, `src/lib/workspace.ts`, `src/lib/redact.ts`.
+  - Remove the now-unused runtime deps:
+    `yarn workspace ...-crossplane remove isomorphic-git @octokit/rest`.
+  - _Requirements: 1.1, 1.2, 2.1, 6.2, 7.2_
+
+- [x] H5. Rewrite the Template as two steps
+  - Step `renderManifest` (camelCase id) invokes `tenant:render-crossplane-manifest` with the four
+    parameters; keep the commented `selectedComponents` seam.
+  - Step `createPullRequest` invokes `publish:github:pull-request`, taking `repoUrl`, `branchName`,
+    `targetBranchName`, `sourcePath`, `targetPath`, `title`, `description`, `commitMessage` from
+    `steps.renderManifest.output.*`, plus `update: true`.
+  - Update `output`: link to `steps.createPullRequest.output.remoteUrl`; text shows tenant,
+    environment, location, SKU, branch name, and manifest path.
+  - Leave the parameters block unchanged.
+  - _Requirements: 4.2, 4.4, 5.1, 5.2, 5.4, 5.5_
+
+- [x] H6. Rework the test suite
+  - [x] H6.1 Delete `git.test.ts`, `workspace.test.ts`, `redact.property.test.ts`
+    - Their subjects no longer exist.
+    - _Requirements: 2.1, 6.2, 7.1_
+  - [x] H6.2 Revise `naming.property.test.ts`
+    - **Property 2: Feature branch name is well-formed and deterministic** — assert
+      `^devops/[a-z0-9-]{3,22}-(dev|staging|prod)$` and that two calls with the same inputs are equal;
+      remove the timestamp assertions.
+    - **Property 7** — extend to assert the commit message also contains tenant and environment.
+    - Tags: `Feature: tenant-provision-crossplane, Property 2: ...` / `... Property 7: ...`, min 100 iterations.
+    - **Validates: Requirements 4.1, 4.3, 5.3**
+  - [x] H6.3 Write `repoUrl.property.test.ts`
+    - **Property 10: Scaffolder repo URL round-trips owner and repo** — for generated
+      `https://<host>/<owner>/<repo>` (with and without `.git`), assert the output is
+      `<host>?owner=<owner>&repo=<repo>`; plus generators of malformed URLs asserting a throw naming
+      `crossplaneProvisioning.liveRepoUrl`.
+    - Tag: `Feature: tenant-provision-crossplane, Property 10: Scaffolder repo URL round-trips owner and repo`, min 100 iterations.
+    - **Validates: Requirements 1.6, 1.9**
+  - [x] H6.4 Write `renderCrossplaneManifest.test.ts` (replaces `tenantProvisionCrossplane.test.ts`)
+    - Happy path: exactly one file exists under the workspace, at `crossplane-pr/xr.yaml`, containing
+      the expected XR (`kind: XTenantEnvironment`, no namespace, no component blocks); all nine outputs
+      are emitted with the expected values (`targetPath` = `tenants/acme/dev`, `branchName` =
+      `devops/acme-dev`, `sourcePath` = `crossplane-pr`, `repoUrl` = `github.com?owner=..&repo=..`).
+    - `location`/`storageAccountSkuName` fall back to the configured defaults when omitted.
+    - Missing `liveRepoUrl` and an unparseable `liveRepoUrl` fail the step with no file written.
+    - A write failure fails the step and emits no output.
+    - **Property 3: Workspace confinement** — tenant/environment values biased toward `..`, `/`, and
+      absolute prefixes either resolve inside the workspace or fail; no file is ever created outside
+      it. Tag + min 100 iterations.
+    - **Property 4: Invalid input is rejected with no side effects** — invalid tenant/env fails, the
+      workspace stays empty, and no output is emitted. Tag + min 100 iterations.
+    - Safety: no child-process/exec and no HTTP client is invoked anywhere in the run.
+    - _Requirements: 1.4, 1.5, 1.8, 2.3, 3.1, 3.2, 3.4, 3.5, 3.7, 3.8, 3.10, 4.1, 5.5, 6.1, 6.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4_
+  - [x] H6.5 Update `module.test.ts`
+    - Assert the registered action id is `tenant:render-crossplane-manifest`.
+    - _Requirements: 1.1, 1.2_
+  - [x] H6.6 Write the template-wiring test
+    - Parse `templates/tenant-provisioning-crossplane/template.yaml`; assert step 1 is
+      `tenant:render-crossplane-manifest`, step 2 is `publish:github:pull-request` with `update: true`,
+      every step-2 input references a step-1 output, and the template output links to
+      `steps.createPullRequest.output.remoteUrl`.
+    - Assert the module `package.json` no longer depends on `isomorphic-git` or `@octokit/rest`.
+    - _Requirements: 2.1, 2.2, 4.2, 4.4, 5.1, 5.2, 5.4_
+  - [x] H6.7 Keep the unchanged suites green
+    - `config.test.ts`, `manifest.property.test.ts`, `components.property.test.ts` need no behavioural
+      change; adjust imports only if paths moved.
+    - _Requirements: 1.10, 1.11, 3.9, 9_
+
+- [x] H7. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] H8. Final verification
+  - `yarn workspace @internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane test`,
+    `yarn tsc`, and `yarn workspace ...-crossplane lint` are green (note: root `yarn lint` diffs against
+    `origin/master` and fails in this clone — lint the workspace instead).
+  - Grep the module for `isomorphic-git`, `@octokit/rest`, `child_process`, and token handling to
+    confirm none remain.
+  - Confirm the existing Terragrunt plugin, action, and tests are unchanged.
+  - _Requirements: 2.1, 2.3, 5.5, 7.1_
+
+### Hybrid update notes
+
+- Behaviour change to flag to reviewers: the feature branch is now **deterministic**
+  (`devops/<tenant>-<env>`, no timestamp) and the pull request is opened with `update: true`, so
+  re-provisioning the same tenant/environment updates the existing open pull request instead of
+  creating another one.
+- The action id changes from `tenant:provision-crossplane` to `tenant:render-crossplane-manifest`.
+  Nothing outside this repo's own template references the old id.
+- `app-config.yaml`, `config.d.ts`, `.env.example`, and the `crossplaneProvisioning` block are
+  unchanged by this update.
+
+### Hybrid Task Dependency Graph
+
+```json
+{
+  "waves": [
+    { "id": 0, "tasks": ["H1", "H2"] },
+    { "id": 1, "tasks": ["H3", "H6.2", "H6.3"] },
+    { "id": 2, "tasks": ["H4", "H5", "H6.1"] },
+    { "id": 3, "tasks": ["H6.4", "H6.5", "H6.6", "H6.7"] },
+    { "id": 4, "tasks": ["H7"] },
+    { "id": 5, "tasks": ["H8"] }
+  ]
+}
+```

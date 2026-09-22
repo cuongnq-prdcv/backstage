@@ -192,7 +192,9 @@ auth:
 scaffolder:
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
-# Configuration for the `tenant:provision-crossplane` scaffolder action.
+# Configuration for the `tenant:render-crossplane-manifest` scaffolder action.
+# liveRepoUrl/liveRepoBranch are emitted by that action to the
+# `publish:github:pull-request` step, so they stay out of template.yaml.
 # Values are ${ENV_VAR} references per the Backstage config convention; never hardcode secrets or env-specific values.
 crossplaneProvisioning:
   liveRepoUrl: ${CROSSPLANE_LIVE_REPO_URL} # required

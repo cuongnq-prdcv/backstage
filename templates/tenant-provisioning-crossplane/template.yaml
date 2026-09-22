@@ -13,9 +13,9 @@ spec:
   owner: user:guest
   type: service
 
-  # The input form: collects the values the tenant:provision-crossplane action
-  # maps to the XTenantEnvironment XR spec (tenantName, environment, location,
-  # storageAccountSkuName; compositionRef.name comes from config). The
+  # The input form: collects the values the tenant:render-crossplane-manifest
+  # action maps to the XTenantEnvironment XR spec (tenantName, environment,
+  # location, storageAccountSkuName; compositionRef.name comes from config). The
   # components selector is retained but commented out (disabled).
   parameters:
     - title: Tenant provisioning inputs
@@ -85,14 +85,18 @@ spec:
         #   default: []
         #   ui:widget: checkboxes
 
-  # Invoke the tenant:provision-crossplane scaffolder action, which
-  # renders/updates the tenant's XTenantEnvironment XR manifest in the Crossplane
-  # live repo on a new branch and opens a pull request. The workflow ends at the
+  # Two steps: the custom action owns the domain logic (validate, read config,
+  # render the manifest into the task workspace) and emits every value the
+  # built-in pull-request action needs; the built-in action does the branch,
+  # commit, and pull request through the GitHub API. The workflow ends at the
   # pull request — no crossplane/kubectl apply or cluster/cloud side effects.
+  #
+  # Step ids are camelCase: the Backstage docs warn that a dashed step id breaks
+  # ${{ steps.my-step.output.x }} expressions.
   steps:
-    - id: provision
-      name: Provision tenant XTenantEnvironment manifest
-      action: tenant:provision-crossplane
+    - id: renderManifest
+      name: Render tenant XTenantEnvironment manifest
+      action: tenant:render-crossplane-manifest
       input:
         tenantName: ${{ parameters.tenantName }}
         environment: ${{ parameters.environment }}
@@ -101,11 +105,32 @@ spec:
         # DISABLED — retained for re-enable (uncomment with the components param):
         # selectedComponents: ${{ parameters.components }}
 
-  # Render the branch name and pull request URL on the results screen.
+    # repoUrl, branchName, and targetBranchName all come from the previous step
+    # so that the live repo URL and base branch stay in app-config
+    # (${CROSSPLANE_LIVE_REPO_URL}) instead of being hardcoded here.
+    #
+    # update: true pairs with the deterministic branch name
+    # devops/<tenant>-<environment>: re-provisioning a tenant/environment updates
+    # the existing open pull request instead of opening a duplicate.
+    - id: createPullRequest
+      name: Open pull request against the Crossplane live repo
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ steps.renderManifest.output.repoUrl }}
+        branchName: ${{ steps.renderManifest.output.branchName }}
+        targetBranchName: ${{ steps.renderManifest.output.targetBranchName }}
+        sourcePath: ${{ steps.renderManifest.output.sourcePath }}
+        targetPath: ${{ steps.renderManifest.output.targetPath }}
+        title: ${{ steps.renderManifest.output.title }}
+        description: ${{ steps.renderManifest.output.description }}
+        commitMessage: ${{ steps.renderManifest.output.commitMessage }}
+        update: true
+
+  # Render the pull request link and the change summary on the results screen.
   output:
     links:
       - title: Open pull request
-        url: ${{ steps.provision.output.pullRequestUrl }}
+        url: ${{ steps.createPullRequest.output.remoteUrl }}
     text:
       - title: Provisioning result
         content: |
@@ -113,5 +138,6 @@ spec:
           - **Environment:** ${{ parameters.environment }}
           - **Location:** ${{ parameters.location }}
           - **Storage account SKU:** ${{ parameters.storageAccountSkuName }}
-          - **Branch:** ${{ steps.provision.output.branchName }}
-          - **Pull request:** ${{ steps.provision.output.pullRequestUrl }}
+          - **Manifest:** ${{ steps.renderManifest.output.manifestPath }}
+          - **Branch:** ${{ steps.renderManifest.output.branchName }}
+          - **Pull request:** ${{ steps.createPullRequest.output.remoteUrl }}

@@ -1,6 +1,6 @@
 import { stringify } from 'yaml';
 
-/** Deployment environment accepted by the tenant:provision-crossplane action. */
+/** Deployment environment accepted by the tenant:render-crossplane-manifest action. */
 export type Environment = 'dev' | 'staging' | 'prod';
 
 /** Input to the pure XTenantEnvironment XR manifest renderer. */

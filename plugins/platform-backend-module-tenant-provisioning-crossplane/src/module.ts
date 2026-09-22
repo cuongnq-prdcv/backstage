@@ -4,7 +4,7 @@ import {
 } from '@backstage/backend-plugin-api';
 import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node';
 
-import { createTenantProvisionCrossplaneAction } from './actions/tenantProvisionCrossplane';
+import { createRenderCrossplaneManifestAction } from './actions/renderCrossplaneManifest';
 
 export const platformModuleTenantProvisioningCrossplane = createBackendModule({
   pluginId: 'scaffolder',
@@ -18,7 +18,7 @@ export const platformModuleTenantProvisioningCrossplane = createBackendModule({
       },
       async init({ scaffolder, config, logger }) {
         scaffolder.addActions(
-          createTenantProvisionCrossplaneAction({ config, logger }),
+          createRenderCrossplaneManifestAction({ config, logger }),
         );
       },
     });

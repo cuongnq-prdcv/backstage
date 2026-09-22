@@ -1,5 +1,11 @@
 /**
- * Property-based tests for the branch-name and PR-title builders.
+ * Property-based tests for the branch-name, PR-title, and commit-message
+ * builders.
+ *
+ * The branch name is now **deterministic** (`devops/<tenant>-<environment>`, no
+ * timestamp): the Template opens the pull request with the built-in action's
+ * `update: true`, so one branch per tenant/environment is updated rather than a
+ * new branch and a duplicate pull request being created per submission.
  *
  * See the tenant-provision-crossplane design ("Testing Strategy" →
  * Property-based tests, Properties 2 and 7).
@@ -7,7 +13,12 @@
 
 import fc from 'fast-check';
 
-import { buildBranchName, buildPullRequestTitle } from '../../lib/naming';
+import {
+  buildBranchName,
+  buildCommitMessage,
+  buildPullRequestDescription,
+  buildPullRequestTitle,
+} from '../../lib/naming';
 
 const tenantName = fc
   .tuple(
@@ -24,44 +35,58 @@ const tenantName = fc
 
 const environment = fc.constantFrom('dev', 'staging', 'prod');
 
-const anyDate = fc
-  .date({ min: new Date('2000-01-01T00:00:00Z'), max: new Date('2099-12-31T23:59:59Z') })
-  .filter(d => !Number.isNaN(d.getTime()));
-
 describe('naming builders', () => {
-  // Feature: tenant-provision-crossplane, Property 2: Feature branch name is well-formed
-  // Validates: Requirements 4.2
-  it('branch name is well-formed and embeds the UTC timestamp (Property 2)', () => {
+  // Feature: tenant-provision-crossplane, Property 2: Feature branch name is
+  // well-formed and deterministic
+  // Validates: Requirements 4.1
+  it('branch name is well-formed and deterministic (Property 2)', () => {
     fc.assert(
-      fc.property(tenantName, environment, anyDate, (tenant, env, date) => {
-        const name = buildBranchName(tenant, env, date);
+      fc.property(tenantName, environment, (tenant, env) => {
+        const name = buildBranchName(tenant, env);
 
         expect(name).toMatch(
-          /^devops\/[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]-(dev|staging|prod)-\d{8}-\d{6}$/,
+          /^devops\/[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]-(dev|staging|prod)$/,
         );
+        expect(name).toBe(`devops/${tenant}-${env}`);
 
-        const y = String(date.getUTCFullYear()).padStart(4, '0');
-        const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(date.getUTCDate()).padStart(2, '0');
-        const h = String(date.getUTCHours()).padStart(2, '0');
-        const mi = String(date.getUTCMinutes()).padStart(2, '0');
-        const s = String(date.getUTCSeconds()).padStart(2, '0');
-        expect(name).toBe(`devops/${tenant}-${env}-${y}${mo}${d}-${h}${mi}${s}`);
+        // Deterministic: no timestamp, no other hidden input.
+        expect(buildBranchName(tenant, env)).toBe(name);
       }),
       { numRuns: 200 },
     );
   });
 
-  // Feature: tenant-provision-crossplane, Property 7: Pull request title identifies tenant and environment
-  // Validates: Requirements 5.3
-  it('PR title contains tenant and environment (Property 7)', () => {
+  // Feature: tenant-provision-crossplane, Property 7: Pull request title and
+  // commit message identify tenant and environment
+  // Validates: Requirements 4.3, 5.3
+  it('PR title and commit message contain tenant and environment (Property 7)', () => {
     fc.assert(
       fc.property(tenantName, environment, (tenant, env) => {
         const title = buildPullRequestTitle(tenant, env);
         expect(title).toContain(tenant);
         expect(title).toContain(env);
+
+        const message = buildCommitMessage(tenant, env);
+        expect(message).toContain(tenant);
+        expect(message).toContain(env);
       }),
       { numRuns: 200 },
     );
+  });
+
+  it('PR description summarises the rendered values', () => {
+    const description = buildPullRequestDescription({
+      tenantName: 'acme',
+      environment: 'dev',
+      location: 'japaneast',
+      storageAccountSkuName: 'Standard_LRS',
+      manifestPath: 'tenants/acme/dev/xr.yaml',
+    });
+
+    expect(description).toContain('acme');
+    expect(description).toContain('dev');
+    expect(description).toContain('japaneast');
+    expect(description).toContain('Standard_LRS');
+    expect(description).toContain('tenants/acme/dev/xr.yaml');
   });
 });
