@@ -57,6 +57,10 @@ const renderOutputNames = Object.keys(
 );
 
 describe('tenant-provisioning-crossplane template wiring', () => {
+  it('is tagged provisioning so the flow policy can distinguish it', () => {
+    expect(template.metadata.tags).toContain('provisioning');
+  });
+
   it('composes the custom render step and the built-in pull-request step in order (Req 5.1)', () => {
     expect(steps.map(s => s.action)).toEqual([
       'tenant:render-crossplane-manifest',

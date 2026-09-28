@@ -8,6 +8,8 @@
 
 import { createBackend } from '@backstage/backend-defaults';
 import { authModuleMicrosoftProvider } from './modules/auth';
+import { permissionModuleTenantFlowPolicy } from './modules/permission';
+import { scaffolderModuleTenantOnboarding } from '@internal/backstage-plugin-platform-tenant-onboarding-backend';
 
 const backend = createBackend();
 
@@ -20,6 +22,8 @@ backend.add(import('@backstage/plugin-scaffolder-backend-module-github'));
 backend.add(
   import('@backstage/plugin-scaffolder-backend-module-notifications'),
 );
+// Onboarding scaffolder action (onboarding:create-jira-issue).
+backend.add(scaffolderModuleTenantOnboarding);
 
 // techdocs plugin
 backend.add(import('@backstage/plugin-techdocs-backend'));
@@ -44,10 +48,10 @@ backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 
 // permission plugin
 backend.add(import('@backstage/plugin-permission-backend'));
-// See https://backstage.io/docs/permissions/getting-started for how to create your own permission policy
-backend.add(
-  import('@backstage/plugin-permission-backend-module-allow-all-policy'),
-);
+// Custom flow policy replacing allow-all: separates the guest onboarding flow
+// from the Microsoft provisioning flow (a guest cannot run the provisioning
+// template). See modules/permission/flowPolicy.ts.
+backend.add(permissionModuleTenantFlowPolicy);
 
 // search plugin
 backend.add(import('@backstage/plugin-search-backend'));
@@ -74,4 +78,6 @@ backend.add(import('@backstage/plugin-signals-backend'));
 backend.add(import('@backstage/plugin-mcp-actions-backend'));
 
 backend.add(import('@internal/backstage-plugin-platform-backend-module-tenant-provisioning-crossplane'));
+// Onboarding request-lookup HTTP plugin (GET /api/platform-tenant-onboarding/requests).
+backend.add(import('@internal/backstage-plugin-platform-tenant-onboarding-backend'));
 backend.start();

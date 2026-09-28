@@ -40,7 +40,7 @@ Key decisions:
 | **Email_Label_Hash** | `onb-<first 16 hex chars of sha256(lowercased trimmed contactEmail)>` — a Jira label used as the exact-match lookup key. |
 | **Tenant_Label** | `onb-tenant-<tenantName>` — a Jira label used to match duplicates exactly. Safe as a label because `tenantName` is already constrained to `[a-z0-9-]`. |
 | **Marker_Label** | The fixed label `tenant-onboarding` present on every Onboarding_Request issue. |
-| **Lookup_Endpoint** | `GET /api/tenant-onboarding/requests?email=<email>` in the new backend plugin. |
+| **Lookup_Endpoint** | `GET /api/platform-tenant-onboarding/requests?email=<email>` in the new backend plugin. (The path segment is the backend plugin's `pluginId`, `platform-tenant-onboarding`.) |
 | **Lookup_Page** | The new frontend page listing a contact's requests. |
 | **Flow_Policy** | The custom `PermissionPolicy` in `packages/backend/src/modules/permission/`, replacing `allow-all-policy`. |
 | **Guest_Identity** | `user:development/guest` — the entity ref issued by the guest provider. |

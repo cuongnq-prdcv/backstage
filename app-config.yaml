@@ -190,6 +190,8 @@ auth:
     #   - 'https://*.example.com/*'
 
 scaffolder:
+  actions:
+    - debug:wait
   # see https://backstage.io/docs/features/software-templates/configuration for software template options
 
 # Configuration for the `tenant:render-crossplane-manifest` scaffolder action.
@@ -204,6 +206,26 @@ crossplaneProvisioning:
   defaultLocation: japaneast # optional; default shown (fallback spec.location)
   defaultStorageAccountSkuName: Standard_LRS # optional; default shown (fallback spec.storageAccountSkuName)
   components: [table, repository] # Allowed_Components; DISABLED (retained for re-enable), not emitted
+
+# Configuration for the `onboarding:create-jira-issue` scaffolder action and the
+# request-lookup endpoint. Values are ${ENV_VAR} references per the Backstage
+# config convention; never hardcode the token or any environment-specific value.
+tenantOnboarding:
+  jira:
+    baseUrl: ${JIRA_BASE_URL} # required; e.g. https://your-site.atlassian.net
+    email: ${JIRA_USER_EMAIL} # required; account the API token belongs to
+    apiToken: ${JIRA_API_TOKEN} # required; secret
+    projectKey: ${JIRA_PROJECT_KEY} # required; project onboarding issues land in
+    issueType: Task # optional; default shown (must exist in the project)
+    webhookSecret: ${JIRA_WEBHOOK_SECRET} # required; secret; shared with the Jira Automation "Send web request" header
+    doneStatus: Done # optional; default shown; the status name that means "completed" in your project workflow
+  smtp:
+    host: ${SMTP_HOST} # required; e.g. sandbox.smtp.mailtrap.io
+    port: ${SMTP_PORT} # required; e.g. 2525
+    user: ${SMTP_USER} # required
+    password: ${SMTP_PASSWORD} # required; secret
+    from: ${SMTP_FROM} # required; e.g. "Onboarding <no-reply@example.com>"
+    secure: false # optional; default false (STARTTLS)
 
 catalog:
   import:
@@ -225,6 +247,12 @@ catalog:
     # Tenant provisioning template (Crossplane)
     - type: file
       target: ../../templates/tenant-provisioning-crossplane/template.yaml
+      rules:
+        - allow: [Template]
+
+    # Tenant onboarding template (files a Jira request)
+    - type: file
+      target: ../../templates/tenant-onboarding/template.yaml
       rules:
         - allow: [Template]
 

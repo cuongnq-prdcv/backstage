@@ -9,6 +9,8 @@ metadata:
     provision or update a tenant's XTenantEnvironment XR manifest (tenant name,
     environment, Azure location, and storage account SKU) and opens a pull
     request against the Crossplane live repository.
+  tags:
+    - provisioning
 spec:
   owner: user:guest
   type: service

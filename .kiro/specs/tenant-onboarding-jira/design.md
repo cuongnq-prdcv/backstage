@@ -104,7 +104,7 @@ guest ──> Backstage: Onboarding_Template form
               v
         result screen: issue link + key to bookmark
 
-guest ──> Lookup_Page ──> GET /api/tenant-onboarding/requests?email=
+guest ──> Lookup_Page ──> GET /api/platform-tenant-onboarding/requests?email=
                               │ JQL fixed server-side
                               v
                           Jira /rest/api/3/search/jql ──> [{issueKey, summary, status, created, url}]

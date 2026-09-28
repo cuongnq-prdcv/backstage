@@ -1,0 +1,128 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-template
+kind: Template
+metadata:
+  name: tenant-onboarding-template
+  title: Tenant Onboarding
+  description: >-
+    Request onboarding for a new tenant. Collects the tenant's contact and
+    sizing details and files a Jira issue for the platform team to review and
+    approve. Creating the Azure subscription and inviting the tenant into Entra
+    ID happen manually after approval.
+  tags:
+    - onboarding
+spec:
+  # spec.type drives the guest-vs-Microsoft permission policy (Flow_Policy):
+  # guests may only read/run templates whose type is `onboarding`.
+  type: onboarding
+  owner: user:guest
+
+  parameters:
+    - title: Tenant onboarding request
+      required:
+        - tenantName
+        - contactEmail
+        - contactName
+        - organization
+        - environment
+        - location
+        - purpose
+      properties:
+        tenantName:
+          title: Tenant name
+          type: string
+          description: >-
+            Identifier for the tenant (e.g. acme). Must be lowercase RFC1123:
+            start/end alphanumeric, 3-22 chars, hyphens allowed in the middle.
+            Matches the provisioning template so the two flows agree on naming.
+          pattern: '^[a-z0-9]([a-z0-9-]{1,20})[a-z0-9]$'
+          ui:autofocus: true
+        contactEmail:
+          title: Contact email
+          type: string
+          format: email
+          description: >-
+            Email of the person to contact about this request. Also the account
+            that will be invited into Entra ID, and the key used to look this
+            request up later.
+        contactName:
+          title: Contact name
+          type: string
+          description: Name of the person to contact about this request.
+        organization:
+          title: Organization
+          type: string
+          description: The tenant's organization or company name.
+        environment:
+          title: Environment
+          type: string
+          description: Deployment environment for the tenant. One of dev, staging, prod.
+          enum:
+            - dev
+            - staging
+            - prod
+          default: dev
+        location:
+          title: Location
+          type: string
+          description: Azure region the tenant will be provisioned in.
+          enum:
+            - japaneast
+            - japanwest
+            - southeastasia
+          default: japaneast
+        purpose:
+          title: Purpose
+          type: string
+          description: >-
+            Why this tenant is being onboarded — enough context for the platform
+            team to approve the request.
+          ui:widget: textarea
+          maxLength: 1000
+
+  # One step: file the Jira issue. The step id is camelCase because the Backstage
+  # docs warn that a dashed step id breaks ${{ steps.<id>.output.x }} expressions.
+  # No Git, Terraform, Terragrunt, Crossplane, or cloud action runs here.
+  steps:
+    # - id: wait-window3
+    #   action: debug:wait
+    #   name: Waiting for 10 seconds
+    #   input:
+    #     seconds: 10
+    
+    - id: createJiraIssue
+      name: File the onboarding request in Jira
+      action: onboarding:create-jira-issue
+      input:
+        tenantName: ${{ parameters.tenantName }}
+        contactEmail: ${{ parameters.contactEmail }}
+        contactName: ${{ parameters.contactName }}
+        organization: ${{ parameters.organization }}
+        environment: ${{ parameters.environment }}
+        location: ${{ parameters.location }}
+        purpose: ${{ parameters.purpose }}
+
+    # Temporary: a delay window to test cross-guest task cancellation (guest B
+    # cancelling guest A's running task). Guests are allowed to run debug:wait
+    # by the flow permission policy solely for this test.
+    # - id: wait-window
+    #   action: debug:wait
+    #   name: Waiting for 10 seconds
+    #   input:
+    #     seconds: 10
+
+  # Show the Jira issue link and remind the requester to keep the issue key, then
+  # point them at the lookup page.
+  output:
+    links:
+      - title: Open Jira request
+        url: ${{ steps.createJiraIssue.output.issueUrl }}
+    text:
+      - title: Onboarding request filed
+        content: |
+          - **Jira issue:** ${{ steps.createJiraIssue.output.issueKey }}
+          - **Reused an existing request:** ${{ steps.createJiraIssue.output.reusedExisting }}
+
+          Keep the issue key above to check your request later. You can look up
+          your requests by contact email at
+          [My onboarding requests](/tenant-onboarding/requests).

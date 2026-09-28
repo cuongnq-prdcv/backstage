@@ -90,6 +90,14 @@ Tenant --> Backstage UI --> Software Template --> Scaffolder action(s)
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` | Production database credentials                    | `app-config.production.yaml` |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` (or role-based credentials) | AWS credentials used by the AWS SDK and by Terraform/Terragrunt when applying infra | Terragrunt/Terraform steps |
 | `AWS_REGION` / `AWS_DEFAULT_REGION` | Default AWS region for provisioning                  | Terragrunt/Terraform steps    |
+| `JIRA_BASE_URL`                    | Jira Cloud site URL (e.g. `https://your-site.atlassian.net`) for the tenant onboarding flow | `app-config.yaml` (`tenantOnboarding.jira`) |
+| `JIRA_USER_EMAIL`                  | Email of the Jira account the API token belongs to    | `app-config.yaml` (`tenantOnboarding.jira`) |
+| `JIRA_API_TOKEN`                   | Jira API token (secret) used for Basic authentication | `app-config.yaml` (`tenantOnboarding.jira`) |
+| `JIRA_PROJECT_KEY`                 | Jira project key onboarding issues are filed in and looked up from | `app-config.yaml` (`tenantOnboarding.jira`) |
+| `JIRA_WEBHOOK_SECRET`              | Shared secret matched against the Jira Automation webhook's `X-Onboarding-Token` header (secret) | `app-config.yaml` (`tenantOnboarding.jira`) |
+| `SMTP_HOST` / `SMTP_PORT`          | SMTP server used to email the contact once their onboarding issue is Done (Mailtrap for testing) | `app-config.yaml` (`tenantOnboarding.smtp`) |
+| `SMTP_USER` / `SMTP_PASSWORD`      | SMTP credentials (`SMTP_PASSWORD` is a secret) | `app-config.yaml` (`tenantOnboarding.smtp`) |
+| `SMTP_FROM`                        | `From` address on the onboarding completion email | `app-config.yaml` (`tenantOnboarding.smtp`) |
 
 `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are both obtained from a GitHub OAuth App
 (GitHub → Settings → Developer settings → OAuth Apps).
