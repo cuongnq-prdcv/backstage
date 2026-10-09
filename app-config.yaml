@@ -106,11 +106,32 @@ backend:
   # auth:
   #   keys:
   #     - secret: ${BACKEND_SECRET}
+
+  auth:
+    externalAccess:
+      - type: jwks
+        options:
+          url: https://login.microsoftonline.com/fd90e7bd-83d9-4ba0-99d5-34c77cafb9ad/discovery/v2.0/keys
+          issuers:
+            - https://login.microsoftonline.com/fd90e7bd-83d9-4ba0-99d5-34c77cafb9ad/v2.0
+          audiences:
+            - 6c80f896-bc4b-4a30-8702-a328ca78ed47
+          subjectPrefix: jira-automation
+        accessRestrictions:
+          - plugin: platform-tenant-onboarding
+
   baseUrl: http://localhost:7007
   listen:
     port: 7007
     # Uncomment the following host directive to bind to specific interfaces
     # host: 127.0.0.1
+  # Hold incoming requests to a backend plugin for up to this long while the
+  # plugin is still starting up, instead of returning 503 "Service has not
+  # started up yet" after the 5s default. This stops the Create/templates page
+  # from flashing a 503 when the catalog takes longer than 5s to come up on a
+  # cold start. See @backstage/backend-defaults createLifecycleMiddleware.
+  lifecycle:
+    startupRequestPauseTimeout: { seconds: 30 }
   csp:
     connect-src: ["'self'", 'http:', 'https:']
     # Content-Security-Policy directives follow the Helmet format: https://helmetjs.github.io/#reference

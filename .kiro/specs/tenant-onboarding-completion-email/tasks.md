@@ -83,7 +83,7 @@ Jira Cloud REST API v3, `crypto.timingSafeEqual`, Jest + `@backstage/backend-tes
 
 - [x] 7. Wire config, plugin, docs, checkpoint
   - [x] 7.1 Wire `createWebhookRouter` in `src/plugin.ts` (read smtp config; mount router).
-    - Also added `httpRouter.addAuthPolicy({ path: '/jira-webhook', allow: 'unauthenticated' })` so
+    - Also added `httpRouter.addAuthPolicy({ path: '/send-mail', allow: 'unauthenticated' })` so
       Jira (which has no Backstage credential) reaches the handler; the shared secret guards it.
   - [x] 7.2 Add `webhookSecret`, `doneStatus`, and `tenantOnboarding.smtp` to `app-config.yaml` (all `${ENV_VAR}`).
   - [x] 7.3 Add `JIRA_WEBHOOK_SECRET` + `SMTP_*` rows to README and placeholders to `.env.example`.
@@ -94,7 +94,7 @@ Jira Cloud REST API v3, `crypto.timingSafeEqual`, Jest + `@backstage/backend-tes
 
 - [x] 8. Manual verification (needs Mailtrap + Jira Automation)
   - [x] 8.1 Create a Mailtrap sandbox inbox; put `SMTP_*` + `SMTP_FROM` and a random `JIRA_WEBHOOK_SECRET` in `.env`.
-  - [x] 8.2 Create a Jira Automation rule: trigger "Issue transitioned" (To status = Done); action "Send web request" → `POST <public-url>/api/platform-tenant-onboarding/jira-webhook`, header `X-Onboarding-Token: <secret>`, body `{"issue":{"key":"{{issue.key}}"}}`. Jira Cloud cannot reach `localhost`, so a `cloudflared` quick tunnel exposed `:7007` publicly.
+  - [x] 8.2 Create a Jira Automation rule: trigger "Issue transitioned" (To status = Done); action "Send web request" → `POST <public-url>/api/platform-tenant-onboarding/send-mail`, header `X-Onboarding-Token: <secret>`, body `{"issue":{"key":"{{issue.key}}"}}`. Jira Cloud cannot reach `localhost`, so a `cloudflared` quick tunnel exposed `:7007` publicly.
   - [x] 8.3 Moved SCRUM-1 to Done → email landed in Mailtrap. Backend log:
     `Onboarding webhook: completion email sent for SCRUM-1`, HTTP 200, with
     `userAgent="Automation for Jira AC app/1.0;..."` — confirming the call came from real Jira

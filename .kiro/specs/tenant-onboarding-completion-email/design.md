@@ -16,7 +16,7 @@ adds no database and keeps Jira as the only store.
 ```
 Jira issue → Done
     │  Jira Automation "Send web request"
-    │  POST /api/platform-tenant-onboarding/jira-webhook
+    │  POST /api/platform-tenant-onboarding/send-mail
     │  header X-Onboarding-Token: <secret>,  body { "issue": { "key": "SCRUM-1" } }
     ▼
 webhookRouter
@@ -179,6 +179,6 @@ verification and traps mail in a sandbox inbox, the simplest thing to test again
 1. Mailtrap: create a sandbox inbox, copy host/port/user/pass into `.env` (`SMTP_*`), set `SMTP_FROM`.
 2. Set `JIRA_WEBHOOK_SECRET` to a random string in `.env`.
 3. Jira Automation rule: trigger "Issue transitioned to Done"; action "Send web request" →
-   `POST <backstage-url>/api/platform-tenant-onboarding/jira-webhook`, header
+   `POST <backstage-url>/api/platform-tenant-onboarding/send-mail`, header
    `X-Onboarding-Token: <JIRA_WEBHOOK_SECRET>`, body `{"issue":{"key":"{{issue.key}}"}}`.
 4. Move an onboarding issue to Done and confirm one email lands in Mailtrap.

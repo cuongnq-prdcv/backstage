@@ -65,7 +65,7 @@ Project settings → Automation → Create rule:
 - **Trigger:** Issue transitioned → **To status = Done**
 - **Condition** (recommended): Labels *contains* `tenant-onboarding`
 - **Action:** Send web request
-  - URL: `https://<random>.trycloudflare.com/api/platform-tenant-onboarding/jira-webhook`
+  - URL: `https://<random>.trycloudflare.com/api/platform-tenant-onboarding/send-mail`
   - Method: `POST`, Body: Custom data → `{"issue":{"key":"{{issue.key}}"}}`
   - Headers: `Content-Type: application/json` and `X-Onboarding-Token: <JIRA_WEBHOOK_SECRET>`
 

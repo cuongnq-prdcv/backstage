@@ -110,7 +110,7 @@ describe('completion webhook router', () => {
     const { app } = await makeApp();
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .send({ issue: { key: 'ONB-1' } });
 
     expect(res.status).toBe(401);
@@ -120,7 +120,7 @@ describe('completion webhook router', () => {
     const { app, client } = await makeApp();
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'wrong-secret')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -132,7 +132,7 @@ describe('completion webhook router', () => {
     const { app } = await makeApp();
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'x')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -143,7 +143,7 @@ describe('completion webhook router', () => {
     const { app } = await makeApp();
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: {} });
 
@@ -156,7 +156,7 @@ describe('completion webhook router', () => {
     const { app, sendCompletion } = await makeApp({ client });
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -174,7 +174,7 @@ describe('completion webhook router', () => {
     const { app, sendCompletion } = await makeApp({ client });
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -197,7 +197,7 @@ describe('completion webhook router', () => {
     app.use(router);
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -220,7 +220,7 @@ describe('completion webhook router', () => {
     const { app, sendCompletion } = await makeApp({ client });
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: { key: 'ONB-1' } });
 
@@ -237,7 +237,7 @@ describe('completion webhook router', () => {
     const { app } = await makeApp({ client, mailer: failingMailer });
 
     const res = await request(app)
-      .post('/jira-webhook')
+      .post('/send-mail')
       .set('X-Onboarding-Token', 'hook-secret')
       .send({ issue: { key: 'ONB-1' } });
 

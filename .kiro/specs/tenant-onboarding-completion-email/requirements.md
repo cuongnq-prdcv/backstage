@@ -19,7 +19,7 @@ accepted (no idempotency), and Mailtrap is the reference SMTP service for testin
 | Term | Meaning |
 | --- | --- |
 | **Onboarding_Issue** | The Jira issue created by the onboarding scaffolder action, whose description (ADF) holds the seven onboarding values and whose labels include `tenant-onboarding`. |
-| **Completion_Webhook** | The new Backstage endpoint `POST /api/platform-tenant-onboarding/jira-webhook`, called by Jira Automation when an issue transitions to Done. |
+| **Completion_Webhook** | The new Backstage endpoint `POST /api/platform-tenant-onboarding/send-mail`, called by Jira Automation when an issue transitions to Done. |
 | **Webhook_Secret** | The shared secret (`JIRA_WEBHOOK_SECRET`) Jira Automation sends in the `X-Onboarding-Token` header and Backstage matches. |
 | **Completion_Email** | The email sent to the contact confirming subscription creation + Entra ID invitation and the next step. |
 | **Done_Status** | The Jira status name that means "completed", configurable (`tenantOnboarding.jira.doneStatus`, default `Done`). |
@@ -34,7 +34,7 @@ Done, so that the contact is emailed automatically without me sending mail by ha
 
 | # | Acceptance Criterion |
 | --- | --- |
-| 1.1 | THE Completion_Webhook SHALL be exposed at `POST /api/platform-tenant-onboarding/jira-webhook`. |
+| 1.1 | THE Completion_Webhook SHALL be exposed at `POST /api/platform-tenant-onboarding/send-mail`. |
 | 1.2 | THE Completion_Webhook SHALL NOT require a Backstage user credential (the caller is Jira, not a signed-in user). |
 | 1.3 | WHEN the `X-Onboarding-Token` header is absent or does not equal the Webhook_Secret, THE Completion_Webhook SHALL respond `401` and take no further action. |
 | 1.4 | THE Completion_Webhook SHALL compare the header to the Webhook_Secret with a constant-time comparison. |

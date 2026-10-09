@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import type {
+  HttpAuthService,
   LoggerService,
   RootConfigService,
 } from '@backstage/backend-plugin-api';
@@ -19,6 +20,7 @@ import type { OnboardingSubmission } from './lib/fieldMapping';
 export interface CreateWebhookRouterOptions {
   config: RootConfigService;
   logger: LoggerService;
+  httpAuth: HttpAuthService;
   clientFactory?: (options: JiraClientOptions) => JiraClient;
   mailerFactory?: (options: MailerOptions) => Mailer;
 }
@@ -43,7 +45,7 @@ function secretMatches(provided: string | undefined, expected: string): boolean 
 }
 
 /**
- * Creates the router exposing `POST /jira-webhook` — called by Jira Automation
+ * Creates the router exposing `POST /send-mail` — called by Jira Automation
  * when an onboarding issue transitions to Done.
  *
  * The endpoint does not require a Backstage user credential (the caller is
@@ -59,6 +61,7 @@ function secretMatches(provided: string | undefined, expected: string): boolean 
 export async function createWebhookRouter({
   config,
   logger,
+  httpAuth,
   clientFactory = createJiraClient,
   mailerFactory = createMailer,
 }: CreateWebhookRouterOptions): Promise<express.Router> {
@@ -70,16 +73,17 @@ export async function createWebhookRouter({
   const router = Router();
   router.use(express.json());
 
-  router.post('/jira-webhook', async (req, res) => {
-    if (
-      !secretMatches(
-        req.header('X-Onboarding-Token'),
-        jiraConfig.webhookSecret,
-      )
-    ) {
-      res.status(401).json({ error: 'Invalid or missing webhook token' });
-      return;
-    }
+  router.post('/send-mail', async (req, res) => {
+    // if (
+    //   !secretMatches(
+    //     req.header('X-Onboarding-Token'),
+    //     jiraConfig.webhookSecret,
+    //   )
+    // ) {
+    //   res.status(401).json({ error: 'Invalid or missing webhook token' });
+    //   return;
+    // }
+    await httpAuth.credentials(req, { allow: ['service'] });
 
     const issue = req.body?.issue;
     const issueKey = issue?.key;
